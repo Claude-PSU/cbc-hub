@@ -1,26 +1,72 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
+  /* ── Anthropic Brand Colors ─────────────────────────────────── */
+  --color-anth-dark:       #141413;   /* hero, footer, stats */
+  --color-anth-light:      #faf9f5;   /* page background */
+  --color-anth-mid-gray:   #b0aea5;   /* secondary / muted text */
+  --color-anth-light-gray: #e8e6dc;   /* borders, subtle surfaces */
+  --color-anth-orange:     #d97757;   /* primary accent (matches Claude icon) */
+  --color-anth-blue:       #6a9bcc;   /* secondary accent */
+  --color-anth-green:      #788c5d;   /* tertiary accent */
+
+  /* ── PSU Brand (institutional identity) ─────────────────────── */
+  --color-psu-navy:      #1E407C;
+  --color-psu-navy-dark: #162E57;
+
+  /* ── Fonts ───────────────────────────────────────────────────── */
+  --font-sans:     var(--font-geist-sans);
+  --font-mono:     var(--font-geist-mono);
+  --font-heading:  var(--font-poppins);
+  --font-body-txt: var(--font-lora);
+
+  /* ── System aliases ──────────────────────────────────────────── */
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-foreground:  var(--foreground);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --background: #faf9f5;
+  --foreground: #141413;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Poppins on marketing headings */
+.heading {
+  font-family: var(--font-poppins, Poppins, Arial, sans-serif);
+}
+
+/* Lora on editorial body paragraphs */
+.body-editorial {
+  font-family: var(--font-lora, Lora, Georgia, serif);
+}
+
+::selection {
+  background: rgba(217, 119, 87, 0.18);
+  color: #d97757;
+}
+
+/* Global vertical scrollbar */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d0cdc5; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #b0aea5; }
+
+/* Hide scrollbar on horizontal scroll rows while keeping scroll functional */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
