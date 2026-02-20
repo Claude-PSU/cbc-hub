@@ -34,6 +34,9 @@ export const metadata: Metadata = {
   title: "Claude Builder Club — Penn State",
   description:
     "Empowering Penn State students to explore the frontier of AI by building with Claude in a safe, responsible, and creative environment.",
+  icons: {
+    icon: "/branding/claude_icon.svg",
+  },
   openGraph: {
     title: "Claude Builder Club — Penn State",
     description:

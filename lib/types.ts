@@ -38,6 +38,9 @@ export interface MemberProfile {
   createdAt?: string;
   isAdmin?: boolean;
   referralSource?: string;
+  githubUsername?: string;
+  linkedinUrl?: string;
+  profilePublic?: boolean;
 }
 
 export interface StoredEvent {

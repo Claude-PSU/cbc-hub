@@ -232,17 +232,20 @@ export default function ProjectDetailPage() {
           <h2 className="heading text-sm font-semibold text-[#141413] mb-3">
             Submitted by
           </h2>
-          <div className="flex items-center gap-3">
+          <Link
+            href={`/members/${project.ownerId}`}
+            className="group flex items-center gap-3 hover:opacity-75 transition-opacity"
+          >
             <div className="w-9 h-9 rounded-full bg-[#d97757]/20 flex items-center justify-center shrink-0">
               <span className="text-sm font-semibold text-[#d97757]">
                 {project.ownerName.charAt(0).toUpperCase()}
               </span>
             </div>
             <div>
-              <p className="text-sm font-medium text-[#141413]">{project.ownerName}</p>
+              <p className="text-sm font-medium text-[#141413] group-hover:text-[#d97757] transition-colors">{project.ownerName}</p>
               <p className="text-xs text-[#b0aea5]">{project.ownerEmail}</p>
             </div>
-          </div>
+          </Link>
 
           {project.collaborators.length > 0 && (
             <div className="mt-3 pt-3 border-t border-[#e8e6dc]">

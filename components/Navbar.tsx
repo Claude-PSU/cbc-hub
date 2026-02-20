@@ -10,11 +10,19 @@ import { auth, db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import ClubLogo from "./ClubLogo";
 
-const navLinks = [
+interface NavLink {
+  href: string;
+  label: string;
+  authOnly?: boolean;
+}
+
+const navLinks: NavLink[] = [
+  { href: "/about", label: "About" },
   { href: "/events", label: "Events" },
   { href: "/case-studies", label: "Case Studies" },
   { href: "/resources", label: "Resources" },
   { href: "/projects", label: "Projects" },
+  { href: "/members", label: "Members", authOnly: true },
 ];
 
 function getInitials(displayName: string | null, email: string | null): string {
@@ -137,7 +145,7 @@ function UserMenu({ effectiveScrolled, isAdmin }: { effectiveScrolled: boolean; 
 }
 
 // Pages whose top section has a dark background — transparent navbar is readable here.
-const DARK_HERO_ROUTES = ["/", "/events", "/projects", "/case-studies", "/resources", "/dashboard", "/admin"];
+const DARK_HERO_ROUTES = ["/", "/about", "/events", "/projects", "/case-studies", "/resources", "/dashboard", "/admin", "/members"];
 
 export default function Navbar() {
   const { user, loading } = useAuth();
@@ -180,19 +188,21 @@ export default function Navbar() {
 
           {/* Desktop nav links */}
           <div className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  effectiveScrolled
-                    ? "text-[#555555] hover:text-[#141413] hover:bg-[#e8e6dc]"
-                    : "text-[#C0C8D8] hover:text-white hover:bg-white/10"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks
+              .filter((link) => !("authOnly" in link && link.authOnly) || user)
+              .map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    effectiveScrolled
+                      ? "text-[#555555] hover:text-[#141413] hover:bg-[#e8e6dc]"
+                      : "text-[#C0C8D8] hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
           </div>
 
           {/* Desktop CTA */}
@@ -230,16 +240,18 @@ export default function Navbar() {
       {menuOpen && (
         <div className="md:hidden bg-white border-t border-[#e8e6dc] py-4 px-4">
           <div className="space-y-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMenuOpen(false)}
-                className="block px-4 py-3 text-sm font-medium text-[#555555] hover:text-[#141413] hover:bg-[#faf9f5] rounded-lg transition-colors"
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks
+              .filter((link) => !("authOnly" in link && link.authOnly) || user)
+              .map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-4 py-3 text-sm font-medium text-[#555555] hover:text-[#141413] hover:bg-[#faf9f5] rounded-lg transition-colors"
+                >
+                  {link.label}
+                </Link>
+              ))}
           </div>
 
           <div className="pt-3 mt-3 border-t border-[#e8e6dc]">

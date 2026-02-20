@@ -7,10 +7,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
-  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithCustomToken,
   GoogleAuthProvider,
   signInWithPopup,
+  signOut,
 } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
@@ -72,16 +73,21 @@ export default function AuthPage() {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
-    if (mode === "signup" && !email.toLowerCase().endsWith("@psu.edu")) {
-      setError("Please use your Penn State email address (@psu.edu) to sign up.");
-      return;
-    }
-
     setLoading(true);
     try {
       if (mode === "signup") {
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        // Sign-up goes through the server so the @psu.edu check can't be bypassed
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? "Registration failed. Please try again.");
+          return;
+        }
+        const cred = await signInWithCustomToken(auth, data.customToken);
         router.push(await getRedirectPath(cred.user.uid));
       } else {
         const cred = await signInWithEmailAndPassword(auth, email, password);
@@ -101,6 +107,12 @@ export default function AuthPage() {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ hd: "psu.edu" });
       const cred = await signInWithPopup(auth, provider);
+      // Verify the domain even if the OAuth hint was bypassed
+      if (!cred.user.email?.toLowerCase().endsWith("@psu.edu")) {
+        await signOut(auth);
+        setError("Please use your Penn State Google account (@psu.edu) to sign in.");
+        return;
+      }
       router.push(await getRedirectPath(cred.user.uid));
     } catch (err) {
       setError(formatError(err));

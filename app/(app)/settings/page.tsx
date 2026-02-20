@@ -71,6 +71,9 @@ const defaultForm: FormState = {
   emailReminders: true,
   newsletter: true,
   referralSource: "",
+  githubUsername: "",
+  linkedinUrl: "",
+  profilePublic: true,
 };
 
 // ─── Settings Page ────────────────────────────────────────────────────────────
@@ -337,6 +340,68 @@ export default function SettingsPage() {
                           {interest}
                         </button>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Public Profile */}
+                  <div className="bg-white rounded-2xl border border-[#e8e6dc] p-6">
+                    <h2 className="text-xs font-semibold text-[#b0aea5] uppercase tracking-wider mb-5">
+                      Public Profile
+                    </h2>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-[#141413] mb-1.5">
+                          GitHub Username
+                        </label>
+                        <input
+                          type="text"
+                          value={form.githubUsername || ""}
+                          onChange={(e) => setForm((p) => ({ ...p, githubUsername: e.target.value }))}
+                          placeholder="octocat"
+                          className="w-full px-4 py-3 border border-[#e8e6dc] rounded-xl text-sm focus:outline-none focus:border-[#d97757] focus:ring-1 focus:ring-[#d97757]/20 bg-white text-[#141413] placeholder:text-[#b0aea5]"
+                        />
+                        <p className="text-xs text-[#b0aea5] mt-1">Optional — helps others find your code</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-[#141413] mb-1.5">
+                          LinkedIn URL
+                        </label>
+                        <input
+                          type="url"
+                          value={form.linkedinUrl || ""}
+                          onChange={(e) => setForm((p) => ({ ...p, linkedinUrl: e.target.value }))}
+                          placeholder="https://linkedin.com/in/yourname"
+                          className="w-full px-4 py-3 border border-[#e8e6dc] rounded-xl text-sm focus:outline-none focus:border-[#d97757] focus:ring-1 focus:ring-[#d97757]/20 bg-white text-[#141413] placeholder:text-[#b0aea5]"
+                        />
+                        <p className="text-xs text-[#b0aea5] mt-1">Optional — connect professionally</p>
+                      </div>
+
+                      <div className="border-t border-[#e8e6dc] pt-4">
+                        <div className="flex items-start justify-between gap-6">
+                          <div>
+                            <p className="text-sm font-medium text-[#141413]">Public Profile</p>
+                            <p className="text-xs text-[#b0aea5] mt-0.5 leading-relaxed">
+                              Make your profile visible to other club members in the members directory
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={form.profilePublic}
+                            onClick={() => setForm((p) => ({ ...p, profilePublic: !p.profilePublic }))}
+                            className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#d97757]/30 ${
+                              form.profilePublic ? "bg-[#d97757]" : "bg-[#e8e6dc]"
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                                form.profilePublic ? "translate-x-6" : "translate-x-1"
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
