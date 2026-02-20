@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { MessageCircle } from "lucide-react";
 
 const footerLinks: Record<string, { href: string; label: string; external?: boolean }[]> = {
   Club: [
@@ -18,7 +19,7 @@ const footerLinks: Record<string, { href: string; label: string; external?: bool
     { href: "/auth", label: "Join the Club" },
     { href: "/newsletter", label: "Newsletter" },
     {
-      href: "https://github.com",
+      href: "https://github.com/Claude-PSU",
       label: "GitHub",
       external: true,
     },
@@ -86,7 +87,35 @@ export default function Footer() {
           <p className="text-sm text-[#b0aea5]">
             © {new Date().getFullYear()} Claude Builder Club at Penn State University
           </p>
-          <p className="text-xs text-[#b0aea5]">Built with Claude</p>
+          <div>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3">
+                <Link
+                  href="https://groupme.com/join_group/108706896/m6t7b7Vs"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs text-[#b0aea5] hover:text-white transition-colors"
+                >
+                  <MessageCircle size={13} />
+                  GroupMe
+                </Link>
+                <span className="text-white/20">·</span>
+                <Link
+                  href="https://www.instagram.com/claude.psu"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs text-[#b0aea5] hover:text-white transition-colors"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                    <circle cx="12" cy="12" r="4" />
+                    <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none" />
+                  </svg>
+                  @claude.psu
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </footer>

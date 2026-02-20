@@ -467,7 +467,7 @@ export default function EventsPage() {
               </Link>
               <span className="text-white/20">·</span>
               <Link
-                href="https://www.instagram.com/claudepsu"
+                href="https://www.instagram.com/claude.psu"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-xs text-[#b0aea5] hover:text-white transition-colors"
@@ -477,7 +477,7 @@ export default function EventsPage() {
                   <circle cx="12" cy="12" r="4"/>
                   <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none"/>
                 </svg>
-                @claudepsu
+                @claude.psu
               </Link>
             </div>
           </div>
@@ -535,7 +535,7 @@ export default function EventsPage() {
                     </Link>
                     <span className="text-white/20">·</span>
                     <Link
-                      href="https://www.instagram.com/claudepsu"
+                      href="https://www.instagram.com/claude.psu"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 text-sm text-[#b0aea5] hover:text-white transition-colors"
@@ -545,7 +545,7 @@ export default function EventsPage() {
                         <circle cx="12" cy="12" r="4"/>
                         <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none"/>
                       </svg>
-                      @claudepsu
+                      @claude.psu
                     </Link>
                   </div>
                 </div>
