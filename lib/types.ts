@@ -36,9 +36,50 @@ export interface MemberProfile {
   newsletter: boolean;
   updatedAt: string;
   createdAt?: string;
+  isAdmin?: boolean;
+  referralSource?: string;
+}
+
+export interface StoredEvent {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  start: string;
+  end: string;
+  isAllDay: boolean;
+  syncedAt: string;
 }
 
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+export interface CaseStudy {
+  id: string;
+  type: "academic" | "club";
+
+  // Academic-specific
+  course?: string;
+  courseTitle?: string;
+  professor?: string;
+  department?: string;
+
+  // Club-specific
+  orgName?: string;
+  orgType?: string;
+
+  // Shared
+  title: string;
+  semester: string;
+  description: string;
+  outcomes: string[];
+  tools: string[];
+  studentCount?: number;
+  image?: string;
+
+  featured: boolean;
+  order: number;
+  published: boolean;
 }

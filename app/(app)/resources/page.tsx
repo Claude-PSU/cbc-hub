@@ -36,11 +36,11 @@ function relativeTime(dateStr: string): string {
 
 function techLevelLabel(level: MemberProfile["techLevel"]): string {
   const labels: Record<MemberProfile["techLevel"], string> = {
-    beginner: "beginner",
-    some: "some experience",
-    intermediate: "intermediate",
-    advanced: "advanced",
-    "": "all levels",
+    beginner: "Beginner",
+    some: "Some experience",
+    intermediate: "Intermediate",
+    advanced: "Advanced",
+    "": "All levels",
   };
   return labels[level];
 }
@@ -295,7 +295,7 @@ export default function ResourcesPage() {
               href="/settings"
               className="inline-flex items-center gap-2 text-xs bg-[#d97757]/10 border border-[#d97757]/30 text-[#d97757] rounded-full px-3 py-1.5 hover:bg-[#d97757]/20 transition-colors"
             >
-              Personalized for {techLevelLabel(profile.techLevel)} level · update in settings →
+              Personalized for your level ({techLevelLabel(profile.techLevel)}) · Update in settings →
             </Link>
           )}
         </div>

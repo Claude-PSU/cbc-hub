@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Menu, X, ChevronDown, Settings, LogOut } from "lucide-react";
+import { Menu, X, ChevronDown, Settings, LogOut, LayoutDashboard, ShieldCheck } from "lucide-react";
 import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import ClubLogo from "./ClubLogo";
 
@@ -33,7 +34,7 @@ function getDisplayName(displayName: string | null, email: string | null): strin
   return email?.split("@")[0] ?? "Member";
 }
 
-function UserMenu({ scrolled }: { scrolled: boolean }) {
+function UserMenu({ scrolled, isAdmin }: { scrolled: boolean; isAdmin: boolean }) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -93,6 +94,24 @@ function UserMenu({ scrolled }: { scrolled: boolean }) {
           {/* Menu items */}
           <div className="py-1">
             <Link
+              href="/dashboard"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#141413] hover:bg-[#faf9f5] transition-colors"
+            >
+              <LayoutDashboard size={15} className="text-[#b0aea5]" />
+              Visit Dashboard
+            </Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#d97757] hover:bg-[#faf9f5] transition-colors"
+              >
+                <ShieldCheck size={15} className="text-[#d97757]" />
+                Admin Dashboard
+              </Link>
+            )}
+            <Link
               href="/settings"
               onClick={() => setOpen(false)}
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#141413] hover:bg-[#faf9f5] transition-colors"
@@ -121,12 +140,20 @@ export default function Navbar() {
   const { user, loading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    getDoc(doc(db, "members", user.uid)).then((snap) => {
+      setIsAdmin(snap.data()?.isAdmin === true);
+    });
+  }, [user]);
 
   return (
     <nav
@@ -164,7 +191,7 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             {!loading && (
               user ? (
-                <UserMenu scrolled={scrolled} />
+                <UserMenu scrolled={scrolled} isAdmin={isAdmin} />
               ) : (
                 <Link
                   href="/auth"
@@ -223,6 +250,22 @@ export default function Navbar() {
                       <p className="text-xs text-[#b0aea5]">{user.email}</p>
                     </div>
                   </div>
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-4 py-2.5 text-sm font-medium text-[#555555] hover:text-[#141413] hover:bg-[#faf9f5] rounded-lg transition-colors"
+                  >
+                    Visit Dashboard
+                  </Link>
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setMenuOpen(false)}
+                      className="block px-4 py-2.5 text-sm font-medium text-[#d97757] hover:bg-[#faf9f5] rounded-lg transition-colors"
+                    >
+                      Admin Dashboard
+                    </Link>
+                  )}
                   <Link
                     href="/settings"
                     onClick={() => setMenuOpen(false)}

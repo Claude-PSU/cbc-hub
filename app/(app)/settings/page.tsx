@@ -39,6 +39,17 @@ const INTERESTS = [
   "Other",
 ];
 
+const REFERRAL_SOURCES = [
+  "Instagram",
+  "GroupMe",
+  "Friend / Classmate",
+  "Professor / Class announcement",
+  "Campus Flyer",
+  "PSU Engage / Org Fair",
+  "LinkedIn",
+  "Other",
+];
+
 const TECH_LEVELS = [
   { value: "beginner", label: "Beginner", description: "New to AI and coding" },
   { value: "some", label: "Some experience", description: "Tried a few tools or tutorials" },
@@ -59,6 +70,7 @@ const defaultForm: FormState = {
   interests: [],
   emailReminders: true,
   newsletter: true,
+  referralSource: "",
 };
 
 // ─── Settings Page ────────────────────────────────────────────────────────────
@@ -71,6 +83,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("profile");
   const [form, setForm] = useState<FormState>(defaultForm);
+  const [existingCreatedAt, setExistingCreatedAt] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
@@ -82,7 +95,9 @@ export default function SettingsPage() {
       const docRef = doc(db, "members", u.uid);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        setForm((prev) => ({ ...prev, ...(docSnap.data() as Partial<FormState>) }));
+        const data = docSnap.data() as Partial<MemberProfile>;
+        setExistingCreatedAt(data.createdAt ?? null);
+        setForm((prev) => ({ ...prev, ...data }));
       } else if (u.displayName) {
         setForm((prev) => ({ ...prev, displayName: u.displayName ?? "" }));
       }
@@ -98,7 +113,7 @@ export default function SettingsPage() {
     try {
       await setDoc(
         doc(db, "members", user.uid),
-        { ...form, email: user.email, uid: user.uid, updatedAt: new Date().toISOString() },
+        { ...form, email: user.email, uid: user.uid, updatedAt: new Date().toISOString(), createdAt: existingCreatedAt ?? new Date().toISOString() },
         { merge: true }
       );
       setSaved(true);
@@ -248,6 +263,20 @@ export default function SettingsPage() {
                         >
                           <option value="">Select college</option>
                           {COLLEGES.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-[#141413] mb-1.5">
+                          How did you hear about us?
+                        </label>
+                        <select
+                          value={form.referralSource ?? ""}
+                          onChange={(e) => setForm((p) => ({ ...p, referralSource: e.target.value }))}
+                          className="w-full px-4 py-3 border border-[#e8e6dc] rounded-xl text-sm focus:outline-none focus:border-[#d97757] bg-white text-[#141413]"
+                        >
+                          <option value="">Select source</option>
+                          {REFERRAL_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </div>
                     </div>

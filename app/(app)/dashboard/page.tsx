@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { doc, getDoc, getDocs, setDoc, deleteDoc, collection } from "firebase/firestore";
+import { doc, getDoc, getDocs, setDoc, deleteDoc, collection, query, where } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import {
   Calendar,
@@ -21,7 +21,7 @@ import {
   Users,
   Loader2,
 } from "lucide-react";
-import type { MemberProfile } from "@/lib/types";
+import type { MemberProfile, Resource } from "@/lib/types";
 import type { CalendarEvent } from "@/app/(app)/api/events/route";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -54,39 +54,6 @@ function formatDateBadge(start: string): { month: string; day: string } {
 }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
-
-interface Resource {
-  title: string;
-  href: string;
-}
-
-const TAILORED_RESOURCES: Record<MemberProfile["techLevel"], Resource[]> = {
-  beginner: [
-    { title: "What is a prompt?",        href: "/resources#what-is-a-prompt" },
-    { title: "Claude 101",               href: "/resources#claude-101" },
-    { title: "Penn State's AI Position", href: "/resources#psu-ai-policy" },
-  ],
-  some: [
-    { title: "Prompt Anatomy",           href: "/resources#prompt-anatomy" },
-    { title: "API Workshop Boilerplate", href: "/resources#workshop-api-boilerplate" },
-    { title: "Chain-of-Thought",         href: "/resources#chain-of-thought" },
-  ],
-  intermediate: [
-    { title: "System Prompts Deep Dive", href: "/resources#system-prompts-deep-dive" },
-    { title: "Claude API Reference",     href: "/resources#claude-api-reference" },
-    { title: "Chain-of-Thought",         href: "/resources#chain-of-thought" },
-  ],
-  advanced: [
-    { title: "Claude API Reference",     href: "/resources#claude-api-reference" },
-    { title: "System Prompts Deep Dive", href: "/resources#system-prompts-deep-dive" },
-    { title: "Anthropic Responsible AI", href: "/resources#anthropic-responsible-ai" },
-  ],
-  "": [
-    { title: "What is a prompt?",        href: "/resources#what-is-a-prompt" },
-    { title: "Claude 101",               href: "/resources#claude-101" },
-    { title: "Penn State's AI Position", href: "/resources#psu-ai-policy" },
-  ],
-};
 
 const QUICK_ACTIONS = [
   {
@@ -205,6 +172,9 @@ export default function DashboardPage() {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [rsvping, setRsvping] = useState<string | null>(null);
 
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [loadingResources, setLoadingResources] = useState(true);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (!u) { router.push("/auth"); return; }
@@ -212,14 +182,20 @@ export default function DashboardPage() {
 
       const snap = await getDoc(doc(db, "members", u.uid));
       if (!snap.exists()) { router.push("/settings"); return; }
-      setProfile(snap.data() as MemberProfile);
+      const profileData = snap.data() as MemberProfile;
+      setProfile(profileData);
       setLoading(false);
 
-      // Fetch next 3 events + their RSVP data in parallel
+      // Fetch next 3 events + their RSVP data + tailored resources in parallel
       try {
-        const res = await fetch("/api/events");
-        const data = await res.json();
-        const eventList: CalendarEvent[] = (data.events ?? []).slice(0, 3);
+        const [eventsRes, resourcesSnap] = await Promise.all([
+          fetch("/api/events"),
+          getDocs(query(collection(db, "resources"), where("published", "==", true))),
+        ]);
+
+        // Process events
+        const eventData = await eventsRes.json();
+        const eventList: CalendarEvent[] = (eventData.events ?? []).slice(0, 3);
         setEvents(eventList);
 
         if (eventList.length > 0) {
@@ -235,10 +211,23 @@ export default function DashboardPage() {
           setRsvpCounts(counts);
           setUserRsvps(rsvped);
         }
+
+        // Process resources
+        const allResources = resourcesSnap.docs
+          .map((d) => ({ id: d.id, ...d.data() } as Resource))
+          .sort((a, b) => a.order - b.order);
+
+        const techLevel = profileData.techLevel;
+        const tailored = allResources
+          .filter((r) => !techLevel || r.techLevels.includes(techLevel as never))
+          .slice(0, 3);
+
+        setResources(tailored);
       } catch (err) {
-        console.error("Dashboard events fetch error:", err);
+        console.error("Dashboard fetch error:", err);
       } finally {
         setLoadingEvents(false);
+        setLoadingResources(false);
       }
     });
     return unsubscribe;
@@ -288,8 +277,6 @@ export default function DashboardPage() {
   const firstName = profile.displayName
     ? profile.displayName.split(" ")[0]
     : profile.email.split("@")[0];
-
-  const resources = TAILORED_RESOURCES[profile.techLevel || ""];
 
   return (
     <div className="min-h-screen bg-[#faf9f5]">
@@ -415,22 +402,38 @@ export default function DashboardPage() {
                 </Link>
               </div>
 
-              <div className="bg-white rounded-2xl border border-[#e8e6dc] divide-y divide-[#e8e6dc]">
-                {resources.map((resource, idx) => (
-                  <Link
-                    key={idx}
-                    href={resource.href}
-                    className="group flex items-center justify-between px-6 py-4 hover:bg-[#faf9f5] transition-colors first:rounded-t-2xl last:rounded-b-2xl"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#d97757] shrink-0" />
-                      <span className="text-sm text-[#141413] group-hover:text-[#d97757] transition-colors">
-                        {resource.title}
-                      </span>
+              <div className="bg-white rounded-2xl border border-[#e8e6dc] overflow-hidden divide-y divide-[#e8e6dc]">
+                {loadingResources ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 size={18} className="animate-spin text-[#b0aea5]" />
+                  </div>
+                ) : resources.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-center p-8 min-h-[160px]">
+                    <div className="w-10 h-10 bg-[#e8e6dc] rounded-xl flex items-center justify-center mb-3">
+                      <BookOpen size={18} className="text-[#b0aea5]" />
                     </div>
-                    <ArrowRight size={14} className="text-[#b0aea5] group-hover:text-[#d97757] transition-colors shrink-0" />
-                  </Link>
-                ))}
+                    <p className="text-sm font-medium text-[#141413] mb-1">No resources available</p>
+                    <p className="text-xs text-[#b0aea5]">Browse all resources to find guides and materials.</p>
+                  </div>
+                ) : (
+                  resources.map((resource) => (
+                    <a
+                      key={resource.id}
+                      href={resource.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center justify-between px-6 py-4 hover:bg-[#faf9f5] transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#d97757] shrink-0" />
+                        <span className="text-sm text-[#141413] group-hover:text-[#d97757] transition-colors truncate">
+                          {resource.title}
+                        </span>
+                      </div>
+                      <ArrowRight size={14} className="text-[#b0aea5] group-hover:text-[#d97757] transition-colors shrink-0" />
+                    </a>
+                  ))
+                )}
               </div>
 
               {profile.techLevel && (
