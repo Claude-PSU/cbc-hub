@@ -1,24 +1,44 @@
-const pillars = [
+import { Compass, Wrench, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+const pillars: {
+  Icon: LucideIcon;
+  step: string;
+  title: string;
+  description: string;
+  accent: string;
+  iconColor: string;
+  stepColor: string;
+}[] = [
   {
-    icon: "🔍",
+    Icon: Compass,
+    step: "01",
     title: "Explore",
     description:
-      "Dive into AI concepts — from prompt engineering to model behavior — through guided workshops, demos, and open exploration sessions.",
-    accent: "bg-[#d97757]/10 text-[#d97757] border-[#d97757]/20",
+      "Curious but don't know where to start? Our workshops, demos, and hands-on sessions meet you exactly where you are — no prior experience needed.",
+    accent: "bg-[#d97757]/10 border-[#d97757]/20",
+    iconColor: "text-[#d97757]",
+    stepColor: "text-[#d97757]",
   },
   {
-    icon: "🔨",
+    Icon: Wrench,
+    step: "02",
     title: "Build",
     description:
-      "Create real AI-powered applications using the Claude API. From class integrations to startup prototypes, you'll ship things that matter.",
-    accent: "bg-[#6a9bcc]/10 text-[#6a9bcc] border-[#6a9bcc]/20",
+      "Have an idea you actually want to ship? Use the Claude API to build real things — for a class project, a startup pitch, or just because you can.",
+    accent: "bg-[#6a9bcc]/10 border-[#6a9bcc]/20",
+    iconColor: "text-[#6a9bcc]",
+    stepColor: "text-[#6a9bcc]",
   },
   {
-    icon: "🤝",
+    Icon: Users,
+    step: "03",
     title: "Connect",
     description:
-      "Join a diverse community of students, faculty, and industry partners united by curiosity, creativity, and a commitment to responsible AI.",
-    accent: "bg-[#788c5d]/10 text-[#788c5d] border-[#788c5d]/20",
+      "Looking for your people? A community of students, faculty, and industry folks who take AI seriously — but don't gatekeep it.",
+    accent: "bg-[#788c5d]/10 border-[#788c5d]/20",
+    iconColor: "text-[#788c5d]",
+    stepColor: "text-[#788c5d]",
   },
 ];
 
@@ -29,16 +49,17 @@ export default function MissionSection() {
         {/* Header */}
         <div className="text-center mb-16">
           <span className="text-xs font-semibold uppercase tracking-widest text-[#d97757] mb-3 block">
-            Our Mission
+            Why We Exist
           </span>
           <h2 className="heading text-3xl sm:text-4xl font-bold text-[#141413] mb-4 leading-tight">
-            Anyone Can Shape the Future
+            Most AI content is made
             <br />
-            with AI
+            for people who already get it.
           </h2>
           <p className="body-editorial text-lg text-[#b0aea5] max-w-2xl mx-auto leading-relaxed">
-            Regardless of major or technical background, our three pillars guide
-            everything we do — and every student is welcome.
+            We&apos;re building for everyone else. STEM, liberal arts, business,
+            whatever — if you&apos;re at Penn State and curious about AI,
+            you&apos;re exactly who this is for.
           </p>
         </div>
 
@@ -49,11 +70,20 @@ export default function MissionSection() {
               key={pillar.title}
               className="bg-white rounded-2xl border border-[#e8e6dc] p-8 hover:shadow-md transition-shadow duration-200"
             >
-              <div
-                className={`w-12 h-12 ${pillar.accent} border rounded-xl flex items-center justify-center text-2xl mb-6`}
-              >
-                {pillar.icon}
+              {/* Step + icon row */}
+              <div className="flex items-center justify-between mb-6">
+                <div
+                  className={`w-12 h-12 ${pillar.accent} border rounded-xl flex items-center justify-center ${pillar.iconColor}`}
+                >
+                  <pillar.Icon size={20} strokeWidth={1.5} />
+                </div>
+                <span
+                  className={`text-2xl font-bold tabular-nums tracking-tight ${pillar.stepColor} opacity-30 select-none`}
+                >
+                  {pillar.step}
+                </span>
               </div>
+
               <h3 className="heading text-xl font-semibold text-[#141413] mb-3">
                 {pillar.title}
               </h3>
@@ -67,11 +97,11 @@ export default function MissionSection() {
         {/* Mission quote */}
         <div className="mt-16 max-w-3xl mx-auto text-center">
           <blockquote className="body-editorial text-lg text-[#b0aea5] italic leading-relaxed">
-            &ldquo;We believe in hands-on learning, ethical innovation, and
-            creating a campus culture where anyone — regardless of major — can
-            shape the future with AI.&rdquo;
+            &ldquo;The AI wave isn&apos;t coming — it&apos;s here. The students
+            who build with it now will define what it looks like for everyone
+            else. We want those students to be from Penn State.&rdquo;
           </blockquote>
-          <p className="mt-4 text-sm text-[#b0aea5]">— Club Mission Statement</p>
+          <p className="mt-4 text-sm text-[#b0aea5]">— Claude Builder Club</p>
         </div>
       </div>
     </section>

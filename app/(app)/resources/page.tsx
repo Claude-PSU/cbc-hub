@@ -18,6 +18,7 @@ import {
   GraduationCap,
   Loader2,
 } from "lucide-react";
+import PageHero from "@/components/PageHero";
 import type { MemberProfile, Resource, ResourceCategory } from "@/lib/types";
 import type { GitHubRepo } from "@/app/(app)/api/github-repos/route";
 
@@ -274,32 +275,27 @@ export default function ResourcesPage() {
   return (
     <div className="min-h-screen bg-[#faf9f5]">
       {/* Hero */}
-      <div className="bg-[#141413] pt-16 pb-14 relative overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#d97757] rounded-full opacity-[0.06] blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-[#6a9bcc] rounded-full opacity-[0.06] blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#d97757] mb-3">
-            Members Resource Hub
-          </p>
-          <h1 className="heading text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
+      <PageHero
+        eyebrow="Members Resource Hub"
+        heading={
+          <>
             Build responsibly.
             <br />
             <span className="text-[#d97757]">Build boldly.</span>
-          </h1>
-          <p className="body-editorial text-[#b0aea5] text-lg max-w-2xl leading-relaxed mb-6">
-            Everything you need to work with AI purposefully — curated for the Penn State community of students and faculty.
-          </p>
-          {profile?.techLevel && (
+          </>
+        }
+        description="Everything you need to work with AI purposefully — curated for the Penn State community of students and faculty."
+        belowDescription={
+          profile?.techLevel ? (
             <Link
               href="/settings"
               className="inline-flex items-center gap-2 text-xs bg-[#d97757]/10 border border-[#d97757]/30 text-[#d97757] rounded-full px-3 py-1.5 hover:bg-[#d97757]/20 transition-colors"
             >
               Personalized for your level ({techLevelLabel(profile.techLevel)}) · Update in settings →
             </Link>
-          )}
-        </div>
-      </div>
+          ) : undefined
+        }
+      />
 
       {/* Sticky filter bar */}
       <div className="sticky top-[64px] z-20 bg-[#faf9f5]/90 backdrop-blur-sm border-b border-[#e8e6dc]">

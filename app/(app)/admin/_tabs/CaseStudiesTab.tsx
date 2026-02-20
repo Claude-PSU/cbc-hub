@@ -13,7 +13,8 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { CaseStudy } from "@/lib/types";
-import { Loader2, Plus, Edit2, Trash2, X } from "lucide-react";
+import { Loader2, Plus, Edit2, Trash2 } from "lucide-react";
+import Modal from "@/components/Modal";
 
 function CaseStudyForm({
   study,
@@ -60,133 +61,172 @@ function CaseStudyForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <select
-          value={formData.type}
-          onChange={(e) => setFormData({ ...formData, type: e.target.value as "academic" | "club" })}
-          className="col-span-2 px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-        >
-          <option value="academic">Academic</option>
-          <option value="club">Club</option>
-        </select>
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-[#141413] mb-1.5">Type</label>
+          <select
+            value={formData.type}
+            onChange={(e) => setFormData({ ...formData, type: e.target.value as "academic" | "club" })}
+            className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+          >
+            <option value="academic">Academic</option>
+            <option value="club">Club</option>
+          </select>
+        </div>
 
-        <input
-          type="text"
-          placeholder="Title"
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          className="col-span-2 px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-          required
-        />
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-[#141413] mb-1.5">Title</label>
+          <input
+            type="text"
+            value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+            required
+          />
+        </div>
 
-        <input
-          type="text"
-          placeholder="Semester (e.g., Spring 2024)"
-          value={formData.semester}
-          onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
-          className="col-span-2 px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-          required
-        />
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-[#141413] mb-1.5">Semester</label>
+          <input
+            type="text"
+            placeholder="e.g., Spring 2024"
+            value={formData.semester}
+            onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
+            className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+            required
+          />
+        </div>
 
-        <textarea
-          placeholder="Description"
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          className="col-span-2 px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-          rows={3}
-          required
-        />
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-[#141413] mb-1.5">Description</label>
+          <textarea
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+            rows={3}
+            required
+          />
+        </div>
 
-        <textarea
-          placeholder="Outcomes (one per line)"
-          value={formData.outcomes.join("\n")}
-          onChange={(e) => setFormData({ ...formData, outcomes: e.target.value.split("\n").filter(Boolean) })}
-          className="col-span-2 px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-          rows={3}
-        />
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-[#141413] mb-1.5">
+            Outcomes <span className="text-[#b0aea5] font-normal">(one per line)</span>
+          </label>
+          <textarea
+            value={formData.outcomes.join("\n")}
+            onChange={(e) => setFormData({ ...formData, outcomes: e.target.value.split("\n").filter(Boolean) })}
+            className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+            rows={3}
+          />
+        </div>
 
-        <input
-          type="text"
-          placeholder="Tools (comma-separated)"
-          value={formData.tools.join(", ")}
-          onChange={(e) => setFormData({ ...formData, tools: e.target.value.split(",").map((t) => t.trim()) })}
-          className="col-span-2 px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-        />
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-[#141413] mb-1.5">
+            Tools <span className="text-[#b0aea5] font-normal">(comma-separated)</span>
+          </label>
+          <input
+            type="text"
+            value={formData.tools.join(", ")}
+            onChange={(e) => setFormData({ ...formData, tools: e.target.value.split(",").map((t) => t.trim()) })}
+            className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+          />
+        </div>
 
-        <input
-          type="url"
-          placeholder="Image URL"
-          value={formData.image || ""}
-          onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-          className="col-span-2 px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-        />
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-[#141413] mb-1.5">
+            Image URL <span className="text-[#b0aea5] font-normal">(optional)</span>
+          </label>
+          <input
+            type="url"
+            value={formData.image || ""}
+            onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+            className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+          />
+        </div>
 
         {formData.type === "academic" ? (
           <>
-            <input
-              type="text"
-              placeholder="Course Code (e.g., CS 101)"
-              value={formData.course || ""}
-              onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-              className="px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-            />
-            <input
-              type="text"
-              placeholder="Course Title"
-              value={formData.courseTitle || ""}
-              onChange={(e) => setFormData({ ...formData, courseTitle: e.target.value })}
-              className="px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-            />
-            <input
-              type="text"
-              placeholder="Professor Name"
-              value={formData.professor || ""}
-              onChange={(e) => setFormData({ ...formData, professor: e.target.value })}
-              className="px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-            />
-            <input
-              type="text"
-              placeholder="Department"
-              value={formData.department || ""}
-              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              className="px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-            />
-            <input
-              type="number"
-              placeholder="Student Count"
-              value={formData.studentCount || ""}
-              onChange={(e) => setFormData({ ...formData, studentCount: parseInt(e.target.value) || undefined })}
-              className="col-span-2 px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-            />
+            <div>
+              <label className="block text-sm font-medium text-[#141413] mb-1.5">Course Code</label>
+              <input
+                type="text"
+                placeholder="e.g., CS 101"
+                value={formData.course || ""}
+                onChange={(e) => setFormData({ ...formData, course: e.target.value })}
+                className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#141413] mb-1.5">Course Title</label>
+              <input
+                type="text"
+                value={formData.courseTitle || ""}
+                onChange={(e) => setFormData({ ...formData, courseTitle: e.target.value })}
+                className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#141413] mb-1.5">Professor</label>
+              <input
+                type="text"
+                value={formData.professor || ""}
+                onChange={(e) => setFormData({ ...formData, professor: e.target.value })}
+                className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#141413] mb-1.5">Department</label>
+              <input
+                type="text"
+                value={formData.department || ""}
+                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-[#141413] mb-1.5">Student Count</label>
+              <input
+                type="number"
+                value={formData.studentCount || ""}
+                onChange={(e) => setFormData({ ...formData, studentCount: parseInt(e.target.value) || undefined })}
+                className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+              />
+            </div>
           </>
         ) : (
           <>
-            <input
-              type="text"
-              placeholder="Organization Name"
-              value={formData.orgName || ""}
-              onChange={(e) => setFormData({ ...formData, orgName: e.target.value })}
-              className="col-span-2 px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-            />
-            <input
-              type="text"
-              placeholder="Organization Type"
-              value={formData.orgType || ""}
-              onChange={(e) => setFormData({ ...formData, orgType: e.target.value })}
-              className="col-span-2 px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-            />
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-[#141413] mb-1.5">Organization Name</label>
+              <input
+                type="text"
+                value={formData.orgName || ""}
+                onChange={(e) => setFormData({ ...formData, orgName: e.target.value })}
+                className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-[#141413] mb-1.5">Organization Type</label>
+              <input
+                type="text"
+                value={formData.orgType || ""}
+                onChange={(e) => setFormData({ ...formData, orgType: e.target.value })}
+                className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+              />
+            </div>
           </>
         )}
 
-        <input
-          type="number"
-          placeholder="Order"
-          value={formData.order}
-          onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })}
-          className="px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm"
-        />
+        <div>
+          <label className="block text-sm font-medium text-[#141413] mb-1.5">Order</label>
+          <input
+            type="number"
+            value={formData.order}
+            onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })}
+            className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+          />
+        </div>
 
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-4 self-end pb-2">
+          <label className="flex items-center gap-2 text-sm text-[#555555]">
             <input
               type="checkbox"
               checked={formData.featured}
@@ -194,7 +234,7 @@ function CaseStudyForm({
             />
             Featured
           </label>
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex items-center gap-2 text-sm text-[#555555]">
             <input
               type="checkbox"
               checked={formData.published}
@@ -295,15 +335,9 @@ export default function CaseStudiesTab() {
 
       {/* Create Modal */}
       {isCreating && (
-        <div className="bg-white rounded-2xl border border-[#e8e6dc] p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-[#141413]">Create Case Study</h3>
-            <button onClick={() => setIsCreating(false)} className="text-[#b0aea5]">
-              <X size={18} />
-            </button>
-          </div>
+        <Modal title="Create Case Study" onClose={() => setIsCreating(false)} maxWidth="max-w-2xl">
           <CaseStudyForm onSave={handleSave} onCancel={() => setIsCreating(false)} />
-        </div>
+        </Modal>
       )}
 
       {/* Case Studies Table */}
@@ -365,19 +399,13 @@ export default function CaseStudiesTab() {
 
       {/* Edit Modal */}
       {editingId && (
-        <div className="bg-white rounded-2xl border border-[#e8e6dc] p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-[#141413]">Edit Case Study</h3>
-            <button onClick={() => setEditingId(null)} className="text-[#b0aea5]">
-              <X size={18} />
-            </button>
-          </div>
+        <Modal title="Edit Case Study" onClose={() => setEditingId(null)} maxWidth="max-w-2xl">
           <CaseStudyForm
             study={studies.find((s) => s.id === editingId)}
             onSave={handleSave}
             onCancel={() => setEditingId(null)}
           />
-        </div>
+        </Modal>
       )}
     </div>
   );

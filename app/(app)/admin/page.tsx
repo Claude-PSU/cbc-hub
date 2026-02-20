@@ -8,14 +8,16 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { MemberProfile } from "@/lib/types";
-import { Loader2, BarChart3, Settings2, Users, Calendar, Zap } from "lucide-react";
+import { Loader2, BarChart3, Settings2, Users, Calendar, Zap, Code2 } from "lucide-react";
+import PageHero from "@/components/PageHero";
 import OverviewTab from "./_tabs/OverviewTab";
 import ResourcesTab from "./_tabs/ResourcesTab";
 import CaseStudiesTab from "./_tabs/CaseStudiesTab";
 import UsersTab from "./_tabs/UsersTab";
 import EventsTab from "./_tabs/EventsTab";
+import ProjectsTab from "./_tabs/ProjectsTab";
 
-type TabType = "overview" | "resources" | "case-studies" | "users" | "events";
+type TabType = "overview" | "resources" | "case-studies" | "users" | "events" | "projects";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; description: string }[] = [
   { id: "overview", label: "Overview", icon: <BarChart3 size={18} />, description: "Club metrics & growth" },
@@ -23,6 +25,7 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode; description: st
   { id: "case-studies", label: "Case Studies", icon: <Settings2 size={18} />, description: "Manage case studies" },
   { id: "users", label: "Users", icon: <Users size={18} />, description: "Member management" },
   { id: "events", label: "Events", icon: <Calendar size={18} />, description: "Event tracking" },
+  { id: "projects", label: "Projects", icon: <Code2 size={18} />, description: "Review member submissions" },
 ];
 
 export default function AdminPage() {
@@ -80,21 +83,11 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-[#faf9f5]">
-      {/* Header */}
-      <section className="bg-[#141413] relative overflow-hidden">
-        <div className="absolute top-0 -left-24 w-80 h-80 bg-[#d97757]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-[#6a9bcc]/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-[#d97757]/20 rounded-lg flex items-center justify-center">
-              <BarChart3 size={20} className="text-[#d97757]" />
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-white heading">Admin Dashboard</h1>
-          </div>
-          <p className="text-[#b0aea5] text-sm max-w-2xl">Manage club content, members, and track growth metrics.</p>
-        </div>
-      </section>
+      <PageHero
+        eyebrow="Club Operations"
+        heading="Admin Dashboard"
+        description="Manage club content, members, and track growth metrics."
+      />
 
       {/* Tab Navigation */}
       <div className="sticky top-16 z-20 bg-white border-b border-[#e8e6dc]">
@@ -125,6 +118,7 @@ export default function AdminPage() {
         {activeTab === "case-studies" && <CaseStudiesTab />}
         {activeTab === "users" && <UsersTab currentUserUid={user!.uid} />}
         {activeTab === "events" && <EventsTab />}
+        {activeTab === "projects" && <ProjectsTab />}
       </div>
     </div>
   );

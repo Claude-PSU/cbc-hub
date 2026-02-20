@@ -16,23 +16,24 @@ export default function NewsletterSection() {
     <section className="py-24 bg-[#e8e6dc]">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <span className="text-xs font-semibold uppercase tracking-widest text-[#d97757] mb-3 block">
-          Newsletter
+          Weekly Reads
         </span>
         <h2 className="heading text-3xl sm:text-4xl font-bold text-[#141413] mb-4">
-          Stay in the Loop
+          AI moves fast. Stay ahead of it.
         </h2>
         <p className="body-editorial text-lg text-[#b0aea5] mb-8 leading-relaxed">
-          AI news, club updates, and exclusive resources delivered to your inbox.
-          For students, faculty, and anyone curious about the future of AI.
+          The Claude Builder Club newsletter delivers what actually matters:
+          AI breakthroughs, campus news, and exclusive resources before anyone
+          else gets them. Takes 5 minutes to read. Pays off all week.
         </p>
 
         {submitted ? (
           <div className="inline-flex items-center gap-3 px-6 py-4 bg-green-50 border border-green-200 rounded-2xl text-green-700">
             <span className="text-2xl">✓</span>
             <div className="text-left">
-              <p className="font-medium text-sm">You&apos;re on the list!</p>
+              <p className="font-medium text-sm">Welcome to the loop!</p>
               <p className="text-xs text-green-600 mt-0.5">
-                Check your inbox to confirm your subscription.
+                First issue lands in your inbox this week.
               </p>
             </div>
           </div>
@@ -54,11 +55,11 @@ export default function NewsletterSection() {
                 type="submit"
                 className="px-6 py-3 bg-[#d97757] hover:bg-[#c86843] text-white text-sm font-medium rounded-xl transition-colors"
               >
-                Subscribe
+                Get the Newsletter
               </button>
             </form>
             <p className="text-xs text-[#b0aea5] mt-4">
-              No spam. Unsubscribe at any time.
+              Zero spam. One-click unsubscribe, always.
             </p>
           </>
         )}

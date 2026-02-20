@@ -1,8 +1,8 @@
 const stats = [
-  { value: "100+", label: "Club Members" },
-  { value: "15+", label: "Events Hosted" },
-  { value: "8+", label: "Departments Reached" },
-  { value: "20+", label: "Student Projects" },
+  { value: "300+", label: "students who didn't wait" },
+  { value: "10+", label: "events where things got built" },
+  { value: "2+", label: "departments in the room" },
+  { value: "20+", label: "projects actually shipped" },
 ];
 
 export default function StatsSection() {
@@ -11,7 +11,7 @@ export default function StatsSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <p className="text-[#b0aea5] text-sm font-medium uppercase tracking-widest">
-            Growing Fast Across Campus
+            The momentum is real
           </p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">

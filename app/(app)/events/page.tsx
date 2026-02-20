@@ -14,6 +14,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import AuthCTA from "@/components/AuthCTA";
 import { Calendar, MapPin, Clock, Loader2, Users, MessageCircle } from "lucide-react";
+import PageHero from "@/components/PageHero";
 import type { CalendarEvent } from "@/app/(app)/api/events/route";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -405,22 +406,12 @@ export default function EventsPage() {
   return (
     <div className="min-h-screen bg-[#faf9f5]">
       {/* Hero band */}
-      <section className="bg-[#141413] pt-16 relative overflow-hidden">
-        <div className="absolute top-0 -left-24 w-96 h-96 bg-[#d97757]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-1/2 right-0 w-80 h-80 bg-[#6a9bcc]/8 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-[#788c5d]/8 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-10">
-          <span className="text-xs font-semibold uppercase tracking-widest text-[#d97757] mb-4 block">
-            Club Events
-          </span>
-          <h1 className="heading text-4xl sm:text-5xl font-bold text-white leading-tight mb-4">
-            Events &amp; Meetups
-          </h1>
-          <p className="body-editorial text-lg text-[#b0aea5] max-w-xl leading-relaxed mb-8">
-            Weekly meetings, workshops, hackathons, and more — all open to Penn
-            State students of any background or skill level.
-          </p>
-          <div className="flex flex-wrap items-center gap-4">
+      <PageHero
+        eyebrow="Club Events"
+        heading="Events & Meetups"
+        description="Weekly meetings, workshops, hackathons, and more — all open to Penn State students of any background or skill level."
+        action={
+          <div className="flex flex-wrap items-center gap-3">
             <Link
               href="https://calendar.google.com/calendar/u/0?cid=Y2xhdWRlcHN1QGdtYWlsLmNvbQ"
               target="_blank"
@@ -439,11 +430,9 @@ export default function EventsPage() {
               </Link>
             )}
           </div>
-        </div>
-
-        {/* Stats bar */}
-        <div className="relative z-10 border-t border-white/10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4 flex-wrap">
+        }
+        statsBar={
+          <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2 text-sm text-[#b0aea5]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#d97757] inline-block" />
@@ -482,8 +471,8 @@ export default function EventsPage() {
               </Link>
             </div>
           </div>
-        </div>
-      </section>
+        }
+      />
 
       {/* Content */}
       <section className="py-12">

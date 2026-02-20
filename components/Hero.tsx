@@ -26,17 +26,17 @@ export default function Hero() {
         </div>
 
         {/* Headline — Poppins */}
-        <h1 className="heading text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-[1.08] mb-6 tracking-tight">
-          Build with AI
+        <h1 className="heading text-5xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.08] mb-6 tracking-tight">
+          Don&apos;t just learn about AI.
           <br />
-          <span className="text-[#d97757]">at Penn State</span>
+          <span className="text-[#d97757]">Build with it at Penn State.</span>
         </h1>
 
         {/* Subheadline — Lora editorial */}
         <p className="body-editorial text-lg sm:text-xl text-[#b0aea5] leading-relaxed max-w-2xl mx-auto mb-12">
-          Claude Builder Club empowers students of all backgrounds to
-          explore the frontier of AI through education and hands-on learning.
-          Regardless of your major, you belong here.
+          Claude Builder Club is where Penn State students go from curious to
+          capable. Shipping real projects, connect with others,
+          and graduate with a portfolio that proves it. <b>No CS degree required.</b>
         </p>
 
         {/* CTAs */}
@@ -45,10 +45,10 @@ export default function Hero() {
             className="px-6 py-3 text-sm font-semibold text-white bg-[#d97757] hover:bg-[#c86843] rounded-xl transition-colors shadow-lg shadow-[#d97757]/20"
           />
           <a
-            href="/events"
+            href="/projects"
             className="px-6 py-3 text-sm font-medium text-[#b0aea5] hover:text-white border border-white/20 hover:border-white/40 rounded-xl transition-colors"
           >
-            View Events →
+            See What We&apos;ve Built →
           </a>
         </div>
       </div>

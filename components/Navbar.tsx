@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Menu, X, ChevronDown, Settings, LogOut, LayoutDashboard, ShieldCheck } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
@@ -34,7 +34,7 @@ function getDisplayName(displayName: string | null, email: string | null): strin
   return email?.split("@")[0] ?? "Member";
 }
 
-function UserMenu({ scrolled, isAdmin }: { scrolled: boolean; isAdmin: boolean }) {
+function UserMenu({ effectiveScrolled, isAdmin }: { effectiveScrolled: boolean; isAdmin: boolean }) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -66,7 +66,7 @@ function UserMenu({ scrolled, isAdmin }: { scrolled: boolean; isAdmin: boolean }
       <button
         onClick={() => setOpen(!open)}
         className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${
-          scrolled
+          effectiveScrolled
             ? "hover:bg-[#e8e6dc] text-[#141413]"
             : "hover:bg-white/10 text-white"
         }`}
@@ -136,11 +136,19 @@ function UserMenu({ scrolled, isAdmin }: { scrolled: boolean; isAdmin: boolean }
   );
 }
 
+// Pages whose top section has a dark background — transparent navbar is readable here.
+const DARK_HERO_ROUTES = ["/", "/events", "/projects", "/case-studies", "/resources", "/dashboard", "/admin"];
+
 export default function Navbar() {
   const { user, loading } = useAuth();
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // Force solid style on pages that don't start with a dark hero band.
+  const hasDarkHero = DARK_HERO_ROUTES.includes(pathname);
+  const effectiveScrolled = scrolled || !hasDarkHero;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -158,7 +166,7 @@ export default function Navbar() {
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
+        effectiveScrolled
           ? "bg-[#faf9f5]/95 backdrop-blur-md shadow-sm border-b border-[#e8e6dc]"
           : "bg-transparent"
       }`}
@@ -167,7 +175,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Club logo lockup */}
           <Link href="/" className="shrink-0">
-            <ClubLogo size="sm" variant={scrolled ? "dark" : "light"} />
+            <ClubLogo size="sm" variant={effectiveScrolled ? "dark" : "light"} />
           </Link>
 
           {/* Desktop nav links */}
@@ -177,7 +185,7 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  scrolled
+                  effectiveScrolled
                     ? "text-[#555555] hover:text-[#141413] hover:bg-[#e8e6dc]"
                     : "text-[#C0C8D8] hover:text-white hover:bg-white/10"
                 }`}
@@ -191,7 +199,7 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             {!loading && (
               user ? (
-                <UserMenu scrolled={scrolled} isAdmin={isAdmin} />
+                <UserMenu effectiveScrolled={effectiveScrolled} isAdmin={isAdmin} />
               ) : (
                 <Link
                   href="/auth"
@@ -207,7 +215,7 @@ export default function Navbar() {
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className={`md:hidden p-2 rounded-lg transition-colors ${
-              scrolled
+              effectiveScrolled
                 ? "text-[#141413] hover:bg-[#e8e6dc]"
                 : "text-white hover:bg-white/10"
             }`}
