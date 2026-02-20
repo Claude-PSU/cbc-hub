@@ -12,8 +12,9 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import AuthCTA from "@/components/AuthCTA";
 import { Calendar, MapPin, Clock, Loader2, Users, MessageCircle } from "lucide-react";
-import type { CalendarEvent } from "@/app/api/events/route";
+import type { CalendarEvent } from "@/app/(app)/api/events/route";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -556,12 +557,11 @@ export default function EventsPage() {
                   >
                     Browse resources
                   </Link>
-                  <Link
-                    href="/auth"
+                  <AuthCTA
                     className="inline-flex items-center gap-2 border border-white/20 hover:border-white/40 text-white/70 hover:text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors"
-                  >
-                    Join the club
-                  </Link>
+                    joinLabel="Join the club"
+                    dashboardLabel="Visit dashboard"
+                  />
                 </div>
               </div>
             </div>

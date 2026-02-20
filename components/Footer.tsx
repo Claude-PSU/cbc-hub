@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { MessageCircle } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 const footerLinks: Record<string, { href: string; label: string; external?: boolean }[]> = {
   Club: [
@@ -27,6 +30,7 @@ const footerLinks: Record<string, { href: string; label: string; external?: bool
 };
 
 export default function Footer() {
+  const { user } = useAuth();
   return (
     <footer className="bg-[#141413] text-[#faf9f5]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -65,19 +69,22 @@ export default function Footer() {
                 {category}
               </h3>
               <ul className="space-y-3">
-                {links.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-[#b0aea5] hover:text-[#faf9f5] transition-colors"
-                      {...(link.external
-                        ? { target: "_blank", rel: "noopener noreferrer" }
-                        : {})}
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
+                {links.map((link) => {
+                  const isJoin = link.label === "Join the Club";
+                  return (
+                    <li key={link.href}>
+                      <Link
+                        href={isJoin && user ? "/dashboard" : link.href}
+                        className="text-sm text-[#b0aea5] hover:text-[#faf9f5] transition-colors"
+                        {...(link.external
+                          ? { target: "_blank", rel: "noopener noreferrer" }
+                          : {})}
+                      >
+                        {isJoin && user ? "Dashboard" : link.label}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ))}

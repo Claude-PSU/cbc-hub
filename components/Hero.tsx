@@ -1,5 +1,6 @@
 import ClubLogo from "./ClubLogo";
 import PromptBox from "./PromptBox";
+import AuthCTA from "./AuthCTA";
 
 export default function Hero() {
   return (
@@ -40,12 +41,9 @@ export default function Hero() {
 
         {/* CTAs */}
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-          <a
-            href="/auth"
+          <AuthCTA
             className="px-6 py-3 text-sm font-semibold text-white bg-[#d97757] hover:bg-[#c86843] rounded-xl transition-colors shadow-lg shadow-[#d97757]/20"
-          >
-            Join the Club
-          </a>
+          />
           <a
             href="/events"
             className="px-6 py-3 text-sm font-medium text-[#b0aea5] hover:text-white border border-white/20 hover:border-white/40 rounded-xl transition-colors"

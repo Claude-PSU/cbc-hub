@@ -72,6 +72,12 @@ export default function AuthPage() {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (mode === "signup" && !email.toLowerCase().endsWith("@psu.edu")) {
+      setError("Please use your Penn State email address (@psu.edu) to sign up.");
+      return;
+    }
+
     setLoading(true);
     try {
       if (mode === "signup") {
@@ -216,6 +222,11 @@ export default function AuthPage() {
                 required
                 className="w-full px-4 py-3 border border-[#e8e6dc] rounded-xl text-sm focus:outline-none focus:border-[#d97757] focus:ring-1 focus:ring-[#d97757]/20 bg-white text-[#141413] placeholder:text-[#b0aea5]"
               />
+              {mode === "signup" && (
+                <p className="mt-1.5 text-xs text-[#b0aea5]">
+                  Must be a Penn State address ending in <span className="font-medium text-[#141413]">@psu.edu</span>
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-[#141413] mb-1.5">
