@@ -21,24 +21,24 @@ export async function DELETE(request: NextRequest) {
     let decodedToken;
     try {
       decodedToken = await adminAuth.verifyIdToken(idToken);
-    } catch (err) {
+    } catch {
       return NextResponse.json(
         { error: "Invalid or expired token" },
         { status: 401 }
       );
     }
 
-    const callerUid = decodedToken.uid;
-
-    const callerDocSnapshot = await adminDb.doc(`members/${callerUid}`).get();
-    const callerData = callerDocSnapshot.data() as { isAdmin?: boolean } | undefined;
-
-    if (!callerData?.isAdmin) {
+    // Auth check via custom claim embedded in the JWT — no extra DB read needed.
+    // The `isAdmin` claim can only be set server-side via the Admin SDK, so
+    // it cannot be spoofed by a client editing their own Firestore document.
+    if (decodedToken.isAdmin !== true) {
       return NextResponse.json(
         { error: "Unauthorized: user is not an admin" },
         { status: 403 }
       );
     }
+
+    const callerUid = decodedToken.uid;
 
     const body = await request.json();
     const targetUid = body.uid;
