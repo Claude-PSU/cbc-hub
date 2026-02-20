@@ -14,13 +14,15 @@ const footerLinks: Record<string, { href: string; label: string; external?: bool
   ],
   Resources: [
     { href: "/resources", label: "Resource Hub" },
-    { href: "/resources/prompt-engineering", label: "Prompt Engineering" },
-    { href: "/resources/workshops", label: "Workshop Materials" },
     { href: "/projects", label: "Student Projects" },
   ],
   Community: [
     { href: "/auth", label: "Join the Club" },
-    { href: "/newsletter", label: "Newsletter" },
+    {
+      href: "https://groupme.com/join_group/108706896/m6t7b7Vs",
+      label: "GroupMe",
+      external: true,
+    },
     {
       href: "https://github.com/Claude-PSU",
       label: "GitHub",

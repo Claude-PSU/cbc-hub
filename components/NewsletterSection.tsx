@@ -1,68 +1,43 @@
-"use client";
+import Link from "next/link";
+import { MessageCircle, ArrowRight } from "lucide-react";
 
-import { useState } from "react";
-
-export default function NewsletterSection() {
-  const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // TODO: Wire to Beehiiv API
-    setSubmitted(true);
-  };
-
+export default function GroupMeSection() {
   return (
     <section className="py-24 bg-[#e8e6dc]">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <span className="text-xs font-semibold uppercase tracking-widest text-[#d97757] mb-3 block">
-          Weekly Reads
+          Join the Conversation
         </span>
         <h2 className="heading text-3xl sm:text-4xl font-bold text-[#141413] mb-4">
-          AI moves fast. Stay ahead of it.
+          Talk Claude in our GroupMe.
         </h2>
         <p className="body-editorial text-lg text-[#b0aea5] mb-8 leading-relaxed">
-          The Claude Builder Club newsletter delivers what actually matters:
-          AI breakthroughs, campus news, and exclusive resources before anyone
-          else gets them. Takes 5 minutes to read. Pays off all week.
+          Meeting reminders, project threads, event announcements, and random AI
+          finds — all in one place. Join the group and stay in the loop from day one.
         </p>
 
-        {submitted ? (
-          <div className="inline-flex items-center gap-3 px-6 py-4 bg-green-50 border border-green-200 rounded-2xl text-green-700">
-            <span className="text-2xl">✓</span>
-            <div className="text-left">
-              <p className="font-medium text-sm">Welcome to the loop!</p>
-              <p className="text-xs text-green-600 mt-0.5">
-                First issue lands in your inbox this week.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <form
-              onSubmit={handleSubmit}
-              className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto"
-            >
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@psu.edu"
-                required
-                className="flex-1 px-4 py-3 border border-[#d0cdc5] rounded-xl text-sm focus:outline-none focus:border-[#d97757] focus:ring-1 focus:ring-[#d97757]/20 bg-white text-[#141413]"
-              />
-              <button
-                type="submit"
-                className="px-6 py-3 bg-[#d97757] hover:bg-[#c86843] text-white text-sm font-medium rounded-xl transition-colors"
-              >
-                Get the Newsletter
-              </button>
-            </form>
-            <p className="text-xs text-[#b0aea5] mt-4">
-              Zero spam. One-click unsubscribe, always.
-            </p>
-          </>
-        )}
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Link
+            href="https://groupme.com/join_group/108706896/m6t7b7Vs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#d97757] hover:bg-[#c86843] text-white text-sm font-medium rounded-xl transition-colors"
+          >
+            <MessageCircle size={16} />
+            Join GroupMe
+          </Link>
+          <Link
+            href="/events"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-[#d0cdc5] hover:border-[#141413] text-[#141413] text-sm font-medium rounded-xl transition-colors bg-white"
+          >
+            <ArrowRight size={16} />
+            See upcoming events
+          </Link>
+        </div>
+
+        <p className="text-xs text-[#b0aea5] mt-5">
+          Already 300+ members. Open to all Penn State students.
+        </p>
       </div>
     </section>
   );
