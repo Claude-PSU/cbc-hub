@@ -36,8 +36,9 @@ import type { CalendarEvent } from "@/app/(app)/api/events/route";
 
 function getHourGreeting(): string {
   const hour = new Date().getHours();
+  if (hour < 4) return "evening";
   if (hour < 12) return "morning";
-  if (hour < 17) return "afternoon";
+  if (hour < 18) return "afternoon";
   return "evening";
 }
 

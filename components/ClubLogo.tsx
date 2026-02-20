@@ -63,7 +63,7 @@ export default function ClubLogo({ size = "md", variant = "light" }: ClubLogoPro
       {/* Wordmark */}
       <div className="flex flex-row gap-1 leading-none items-baseline">
         <span className={`font-bold tracking-tight ${s.label} ${labelColor}`}>
-          Claude
+          Claude Builder Club
         </span>
         <span className={`${s.sub} font-medium ${subColor}`}>@ PSU</span>
       </div>

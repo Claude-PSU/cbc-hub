@@ -124,7 +124,7 @@ export default function AboutPage() {
         eyebrow="About the Club"
         heading={
           <>
-            Penn State&apos;s official
+            Penn State&apos;s
             <br />
             <span className="text-[#d97757]">AI builder community.</span>
           </>
