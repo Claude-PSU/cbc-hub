@@ -145,7 +145,7 @@ function UserMenu({ effectiveScrolled, isAdmin }: { effectiveScrolled: boolean; 
 }
 
 // Pages whose top section has a dark background — transparent navbar is readable here.
-const DARK_HERO_ROUTES = ["/", "/about", "/events", "/projects", "/case-studies", "/resources", "/dashboard", "/admin", "/members"];
+const DARK_HERO_ROUTES = ["/", "/about", "/events", "/projects", "/case-studies", "/resources", "/dashboard", "/admin", "/members", "/contact"];
 
 export default function Navbar() {
   const { user, loading } = useAuth();
