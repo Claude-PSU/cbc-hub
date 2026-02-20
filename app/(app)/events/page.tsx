@@ -271,40 +271,22 @@ function EventSection({
         </span>
       </div>
 
-      {/* Grid (≤3 events) or horizontal scroll (4+) */}
-      {events.length <= 3 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-4 sm:px-6 lg:px-8">
-          {events.map((event) => (
-            <EventCard
-              key={event.id}
-              layout="grid"
-              event={event}
-              attendees={rsvpData[event.id] ?? []}
-              isRsvped={userRsvps.has(event.id)}
-              isProcessing={rsvping === event.id}
-              isAuthenticated={isAuthenticated}
-              currentUserId={currentUserId}
-              onRsvp={onRsvp}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="flex gap-4 overflow-x-auto pb-4 px-4 sm:px-6 lg:px-8 scrollbar-none">
-          {events.map((event) => (
-            <EventCard
-              key={event.id}
-              layout="scroll"
-              event={event}
-              attendees={rsvpData[event.id] ?? []}
-              isRsvped={userRsvps.has(event.id)}
-              isProcessing={rsvping === event.id}
-              isAuthenticated={isAuthenticated}
-              currentUserId={currentUserId}
-              onRsvp={onRsvp}
-            />
-          ))}
-        </div>
-      )}
+      {/* Wrapping grid — max 4 columns, wraps onto new rows */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 px-4 sm:px-6 lg:px-8">
+        {events.map((event) => (
+          <EventCard
+            key={event.id}
+            layout="grid"
+            event={event}
+            attendees={rsvpData[event.id] ?? []}
+            isRsvped={userRsvps.has(event.id)}
+            isProcessing={rsvping === event.id}
+            isAuthenticated={isAuthenticated}
+            currentUserId={currentUserId}
+            onRsvp={onRsvp}
+          />
+        ))}
+      </div>
     </div>
   );
 }
