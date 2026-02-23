@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -28,7 +28,7 @@ function formatEventTime(start: string, isAllDay: boolean): string {
   return `${date} at ${time}`;
 }
 
-export default function CheckInPage() {
+function CheckInForm() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -208,5 +208,13 @@ export default function CheckInPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function CheckInPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#faf9f5]" />}>
+      <CheckInForm />
+    </Suspense>
   );
 }
