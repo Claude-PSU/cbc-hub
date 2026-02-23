@@ -193,9 +193,9 @@ export default function MembersPage() {
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         return (
-          m.displayName.toLowerCase().includes(query) ||
-          m.major.toLowerCase().includes(query) ||
-          m.college.toLowerCase().includes(query)
+          m.displayName?.toLowerCase().includes(query) ||
+          m.major?.toLowerCase().includes(query) ||
+          m.college?.toLowerCase().includes(query)
         );
       }
       return true;

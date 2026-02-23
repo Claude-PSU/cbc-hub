@@ -112,11 +112,11 @@ export default function UsersTab({ currentUserUid }: { currentUserUid: string })
   };
 
   const filteredMembers = members.filter((m) => {
-    const q = searchQuery.toLowerCase();
+    const q = String(searchQuery).toLowerCase();
     return (
-      m.displayName.toLowerCase().includes(q) ||
-      m.email.toLowerCase().includes(q) ||
-      m.college.toLowerCase().includes(q)
+      m.displayName?.toLowerCase().includes(q) ||
+      m.email?.toLowerCase().includes(q) ||
+      m.college?.toLowerCase().includes(q)
     );
   });
 

@@ -70,6 +70,32 @@ function AuthForm() {
   }
 
   const formatError = (err: unknown) => {
+    const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+
+    // Match specific Firebase error codes
+    if (msg.includes("user-not-found")) {
+      return "No account found with this email. Try signing in with Google, or create an account with email.";
+    }
+    if (msg.includes("wrong-password") || msg.includes("invalid-password")) {
+      return "Incorrect password. Please try again.";
+    }
+    if (msg.includes("invalid-email")) {
+      return "Invalid email address. Please check and try again.";
+    }
+    if (msg.includes("user-disabled")) {
+      return "This account has been disabled. Contact support for help.";
+    }
+    if (msg.includes("too-many-requests")) {
+      return "Too many failed login attempts. Please try again in a few minutes.";
+    }
+    if (msg.includes("operation-not-allowed")) {
+      return "Email sign-in is currently unavailable. Try signing in with Google.";
+    }
+    if (msg.includes("invalid-credential") || msg.includes("invalid-login-credentials")) {
+      return "Email or password is incorrect. Please try again.";
+    }
+
+    // Generic cleanup for Firebase error messages
     if (err instanceof Error) {
       return err.message
         .replace("Firebase: ", "")
@@ -102,13 +128,27 @@ function AuthForm() {
         await setDoc(doc(db, "members", cred.user.uid), {
           uid: cred.user.uid,
           email: cred.user.email,
+          emailPasswordAccountVerified: false,
           ...(utm ? { utmSource: utm } : {}),
         }, { merge: true });
-        // Always send new registrations to /settings to complete their profile
+        // Send new registrations to /verify-email before profile setup
         const next = searchParams.get("next");
-        router.push(next && next.startsWith("/") ? `/settings?next=${encodeURIComponent(next)}` : "/settings");
+        router.push(next && next.startsWith("/") ? `/verify-email?next=${encodeURIComponent(next)}` : "/verify-email");
       } else {
         const cred = await signInWithEmailAndPassword(auth, email, password);
+        // Gate unverified email/password accounts before any other redirect
+        const snap = await getDoc(doc(db, "members", cred.user.uid));
+        if (snap.exists() && snap.data().emailPasswordAccountVerified === false) {
+          const idToken = await cred.user.getIdToken();
+          // Auto-send a fresh code; ignore errors (user can resend from the page)
+          fetch("/api/auth/send-verification", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${idToken}` },
+          }).catch(() => {});
+          const next = searchParams.get("next");
+          router.push(next && next.startsWith("/") ? `/verify-email?next=${encodeURIComponent(next)}` : "/verify-email");
+          return;
+        }
         router.push(await getPostAuthRedirect(cred.user.uid));
       }
     } catch (err) {

@@ -51,6 +51,7 @@ export interface MemberProfile {
   githubUsername?: string;
   linkedinUrl?: string;
   profilePublic?: boolean;
+  emailPasswordAccountVerified?: boolean;
 }
 
 export interface StoredEvent {
