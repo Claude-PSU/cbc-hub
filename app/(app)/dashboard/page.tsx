@@ -29,7 +29,7 @@ import {
   Sparkle,
   MessageCircle,
 } from "lucide-react";
-import type { MemberProfile, Resource, Project } from "@/lib/types";
+import type { MemberProfile, Resource, Project, AttendanceRecord } from "@/lib/types";
 import type { CalendarEvent } from "@/app/(app)/api/events/route";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -392,6 +392,9 @@ export default function DashboardPage() {
   const [spotlightProject, setSpotlightProject] = useState<Project | null>(null);
   const [loadingSpotlight, setLoadingSpotlight] = useState(true);
 
+  const [attendedEvents, setAttendedEvents] = useState<AttendanceRecord[]>([]);
+  const [loadingAttendance, setLoadingAttendance] = useState(true);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (!u) { router.push("/auth"); return; }
@@ -405,13 +408,14 @@ export default function DashboardPage() {
 
       // Fetch all data in parallel
       try {
-        const [eventsRes, resourcesSnap, myProjectsSnap, membersCountSnap, approvedCountSnap, spotlightSnap] = await Promise.all([
+        const [eventsRes, resourcesSnap, myProjectsSnap, membersCountSnap, approvedCountSnap, spotlightSnap, attendanceSnap] = await Promise.all([
           fetch("/api/events"),
           getDocs(query(collection(db, "resources"), where("published", "==", true))),
           getDocs(query(collection(db, "projects"), where("ownerId", "==", u.uid))),
           getCountFromServer(collection(db, "members")).catch(() => null),
           getCountFromServer(query(collection(db, "projects"), where("status", "==", "approved"))).catch(() => null),
           getDocs(query(collection(db, "projects"), where("status", "==", "approved"), where("featured", "==", true), limit(1))),
+          getDocs(collection(db, "members", u.uid, "attendance")),
         ]);
 
         // Process events
@@ -462,6 +466,12 @@ export default function DashboardPage() {
           eventsThisSemester,
         });
 
+        // Attended events — sort by eventStart descending (most recent first)
+        const attended = attendanceSnap.docs
+          .map((d) => d.data() as AttendanceRecord)
+          .sort((a, b) => new Date(b.eventStart).getTime() - new Date(a.eventStart).getTime());
+        setAttendedEvents(attended);
+
         // Spotlight project — featured first, fallback to top-starred approved
         if (!spotlightSnap.empty) {
           setSpotlightProject({ id: spotlightSnap.docs[0].id, ...spotlightSnap.docs[0].data() } as Project);
@@ -482,6 +492,7 @@ export default function DashboardPage() {
         setLoadingMyProjects(false);
         setLoadingPulse(false);
         setLoadingSpotlight(false);
+        setLoadingAttendance(false);
       }
     });
     return unsubscribe;
@@ -828,6 +839,62 @@ export default function DashboardPage() {
               displayedProjects.map((project) => (
                 <MyProjectRow key={project.id} project={project} />
               ))
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section E: My Attended Events ── */}
+      <section className="pb-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-xs font-semibold text-[#b0aea5] uppercase tracking-wider">
+              My Attendance
+            </p>
+            <Link href="/events" className="text-xs text-[#d97757] hover:underline flex items-center gap-1">
+              Browse events <ExternalLink size={11} />
+            </Link>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-[#e8e6dc] overflow-hidden divide-y divide-[#e8e6dc]">
+            {loadingAttendance ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 size={18} className="animate-spin text-[#b0aea5]" />
+              </div>
+            ) : attendedEvents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center p-8 min-h-[140px]">
+                <div className="w-10 h-10 bg-[#e8e6dc] rounded-xl flex items-center justify-center mb-3">
+                  <CheckCircle size={18} className="text-[#b0aea5]" />
+                </div>
+                <p className="text-sm font-medium text-[#141413] mb-1">No check-ins yet</p>
+                <p className="text-xs text-[#b0aea5]">Scan the QR code at your next meeting to record your attendance.</p>
+              </div>
+            ) : (
+              attendedEvents.slice(0, 5).map((record) => {
+                const badge = formatDateBadge(record.eventStart);
+                return (
+                  <div key={record.eventId} className="flex items-center gap-4 px-5 py-3.5">
+                    <div className="shrink-0 flex flex-col items-center bg-[#788c5d]/10 border border-[#788c5d]/20 rounded-xl px-2 py-1.5 min-w-[40px] text-center">
+                      <span className="text-[8px] font-bold text-[#788c5d] tracking-widest leading-none">{badge.month}</span>
+                      <span className="text-[15px] font-bold text-[#788c5d] leading-tight">{badge.day}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#141413] truncate">{record.eventTitle}</p>
+                      <p className="text-xs text-[#b0aea5] mt-0.5 flex items-center gap-1">
+                        <CheckCircle size={10} className="text-[#788c5d] shrink-0" />
+                        Checked in {new Date(record.checkedInAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+            {attendedEvents.length > 5 && (
+              <div className="px-5 py-3 text-center">
+                <p className="text-xs text-[#b0aea5]">
+                  +{attendedEvents.length - 5} more events attended
+                </p>
+              </div>
             )}
           </div>
         </div>

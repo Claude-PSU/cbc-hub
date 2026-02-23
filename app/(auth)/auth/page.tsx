@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   signInWithEmailAndPassword,
   signInWithCustomToken,
@@ -14,13 +14,8 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import ClubLogo from "@/components/ClubLogo";
-
-async function getRedirectPath(uid: string): Promise<string> {
-  const snap = await getDoc(doc(db, "members", uid));
-  return snap.exists() ? "/dashboard" : "/settings";
-}
 
 type Mode = "signin" | "signup";
 
@@ -59,6 +54,20 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // After a successful auth, redirect to ?next= if it's a safe relative path,
+  // otherwise fall back to the profile-aware default.
+  async function getPostAuthRedirect(uid: string): Promise<string> {
+    const next = searchParams.get("next");
+    const snap = await getDoc(doc(db, "members", uid));
+    if (!snap.exists()) {
+      // Preserve the pending check-in (or any ?next=) through the profile setup flow
+      return next && next.startsWith("/") ? `/settings?next=${encodeURIComponent(next)}` : "/settings";
+    }
+    if (next && next.startsWith("/")) return next;
+    return "/dashboard";
+  }
 
   const formatError = (err: unknown) => {
     if (err instanceof Error) {
@@ -88,10 +97,19 @@ export default function AuthPage() {
           return;
         }
         const cred = await signInWithCustomToken(auth, data.customToken);
-        router.push(await getRedirectPath(cred.user.uid));
+        // Write a stub members doc so isMember() passes even if onboarding is abandoned
+        const utm = searchParams.get("utm_source");
+        await setDoc(doc(db, "members", cred.user.uid), {
+          uid: cred.user.uid,
+          email: cred.user.email,
+          ...(utm ? { utmSource: utm } : {}),
+        }, { merge: true });
+        // Always send new registrations to /settings to complete their profile
+        const next = searchParams.get("next");
+        router.push(next && next.startsWith("/") ? `/settings?next=${encodeURIComponent(next)}` : "/settings");
       } else {
         const cred = await signInWithEmailAndPassword(auth, email, password);
-        router.push(await getRedirectPath(cred.user.uid));
+        router.push(await getPostAuthRedirect(cred.user.uid));
       }
     } catch (err) {
       setError(formatError(err));
@@ -113,7 +131,20 @@ export default function AuthPage() {
         setError("Please use your Penn State Google account (@psu.edu) to sign in.");
         return;
       }
-      router.push(await getRedirectPath(cred.user.uid));
+      // Check if new user — write stub with utm_source if so
+      const snap = await getDoc(doc(db, "members", cred.user.uid));
+      const next = searchParams.get("next");
+      if (!snap.exists()) {
+        const utm = searchParams.get("utm_source");
+        await setDoc(doc(db, "members", cred.user.uid), {
+          uid: cred.user.uid,
+          email: cred.user.email,
+          ...(utm ? { utmSource: utm } : {}),
+        }, { merge: true });
+        router.push(next && next.startsWith("/") ? `/settings?next=${encodeURIComponent(next)}` : "/settings");
+      } else {
+        router.push(next && next.startsWith("/") ? next : "/dashboard");
+      }
     } catch (err) {
       setError(formatError(err));
     } finally {

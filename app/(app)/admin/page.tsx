@@ -8,7 +8,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { MemberProfile } from "@/lib/types";
-import { Loader2, BarChart3, Settings2, Users, Calendar, Zap, Code2 } from "lucide-react";
+import { Loader2, BarChart3, Settings2, Users, Calendar, Zap, Code2, Mail } from "lucide-react";
 import PageHero from "@/components/PageHero";
 import OverviewTab from "./_tabs/OverviewTab";
 import ResourcesTab from "./_tabs/ResourcesTab";
@@ -16,8 +16,9 @@ import CaseStudiesTab from "./_tabs/CaseStudiesTab";
 import UsersTab from "./_tabs/UsersTab";
 import EventsTab from "./_tabs/EventsTab";
 import ProjectsTab from "./_tabs/ProjectsTab";
+import EmailTab from "./_tabs/EmailTab";
 
-type TabType = "overview" | "resources" | "case-studies" | "users" | "events" | "projects";
+type TabType = "overview" | "resources" | "case-studies" | "users" | "events" | "projects" | "email";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; description: string }[] = [
   { id: "overview", label: "Overview", icon: <BarChart3 size={18} />, description: "Club metrics & growth" },
@@ -26,6 +27,7 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode; description: st
   { id: "users", label: "Users", icon: <Users size={18} />, description: "Member management" },
   { id: "events", label: "Events", icon: <Calendar size={18} />, description: "Event tracking" },
   { id: "projects", label: "Projects", icon: <Code2 size={18} />, description: "Review member submissions" },
+  { id: "email", label: "Email", icon: <Mail size={18} />, description: "Send bulk emails to members" },
 ];
 
 export default function AdminPage() {
@@ -119,6 +121,7 @@ export default function AdminPage() {
         {activeTab === "users" && <UsersTab currentUserUid={user!.uid} />}
         {activeTab === "events" && <EventsTab />}
         {activeTab === "projects" && <ProjectsTab />}
+        {activeTab === "email" && <EmailTab />}
       </div>
     </div>
   );

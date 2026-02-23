@@ -58,6 +58,11 @@ interface AdminStats {
   emailRemindersOptIn: number;
   newsletterOptIn: number;
 
+  // Attendance (QR check-ins)
+  attendanceRate: number;        // % of members who checked in to ≥1 event
+  totalCheckIns: number;
+  membersCheckedIn: number;
+
   // Events
   eventsHosted: number;
   eventsSynced: boolean;
@@ -329,12 +334,19 @@ export default function OverviewTab() {
         // semesterRsvpSets[semLabel] = Set of member UIDs who RSVPd ≥1 event in that semester
         const semesterRsvpSets: Record<string, Set<string>> = {};
 
+        // Track check-in UIDs across all events for attendance rate
+        const checkedInUids = new Set<string>();
+        let totalCheckIns = 0;
+
         await Promise.all(
           events.map(async (event) => {
-            const snap = await getDocs(collection(db, "rsvps", event.id, "attendees"));
+            const [rsvpSnap, checkInSnap] = await Promise.all([
+              getDocs(collection(db, "rsvps", event.id, "attendees")),
+              getDocs(collection(db, "attendance", event.id, "checkins")),
+            ]);
             const semLabel = event.start ? getSemesterLabel(new Date(event.start)) : null;
 
-            snap.docs.forEach((d) => {
+            rsvpSnap.docs.forEach((d) => {
               memberRsvpCounts[d.id] = (memberRsvpCounts[d.id] ?? 0) + 1;
               if (semLabel) {
                 if (!semesterRsvpSets[semLabel]) semesterRsvpSets[semLabel] = new Set();
@@ -342,11 +354,16 @@ export default function OverviewTab() {
               }
             });
 
+            checkInSnap.docs.forEach((d) => {
+              checkedInUids.add(d.id);
+              totalCheckIns++;
+            });
+
             eventRsvpBreakdown.push({
               eventId: event.id,
               title: event.title,
               start: event.start,
-              count: snap.size,
+              count: rsvpSnap.size,
             });
           })
         );
@@ -411,6 +428,9 @@ export default function OverviewTab() {
         const resources = resourcesSnap.docs.map((d) => d.data() as Resource);
         const caseStudies = caseStudiesSnap.docs.map((d) => d.data() as CaseStudy);
 
+        const membersCheckedIn = checkedInUids.size;
+        const attendanceRate = totalMembers > 0 ? (membersCheckedIn / totalMembers) * 100 : 0;
+
         setStats({
           totalMembers,
           newThisSemester,
@@ -422,6 +442,9 @@ export default function OverviewTab() {
           membersWithNoRsvps,
           emailRemindersOptIn,
           newsletterOptIn,
+          attendanceRate,
+          totalCheckIns,
+          membersCheckedIn,
           eventsHosted: events.length,
           eventsSynced,
           eventRsvpBreakdown,
@@ -531,9 +554,17 @@ export default function OverviewTab() {
           />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-          <FutureStatCard
+          <StatCard
             label="Attendance Rate"
-            description="% of members attending weekly meetings. Requires in-person check-in or QR tracking."
+            value={`${Math.round(stats.attendanceRate)}%`}
+            subtext={
+              stats.totalCheckIns > 0
+                ? `${stats.membersCheckedIn} of ${t} members checked in · ${stats.totalCheckIns} total check-ins`
+                : "No QR check-ins recorded yet"
+            }
+            icon={<CheckCircle size={16} />}
+            accent="#788c5d"
+            faded={stats.totalCheckIns === 0}
           />
           <FutureStatCard
             label="Feedback Score"

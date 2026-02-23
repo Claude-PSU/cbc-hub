@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -80,10 +80,13 @@ const defaultForm: FormState = {
 
 export default function SettingsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next");
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("profile");
   const [form, setForm] = useState<FormState>(defaultForm);
   const [existingCreatedAt, setExistingCreatedAt] = useState<string | null>(null);
@@ -113,16 +116,25 @@ export default function SettingsPage() {
     e.preventDefault();
     if (!user) return;
     setSaving(true);
+    setSaveError(null);
+    const isNewProfile = existingCreatedAt === null;
     try {
       await setDoc(
         doc(db, "members", user.uid),
         { ...form, email: user.email, uid: user.uid, updatedAt: new Date().toISOString(), createdAt: existingCreatedAt ?? new Date().toISOString() },
         { merge: true }
       );
+      // On first-time profile creation, forward to ?next= (e.g. a pending check-in) or dashboard
+      if (isNewProfile) {
+        const dest = next && (next.startsWith("/") || next.startsWith("https://") || next.startsWith("http://")) ? next : "/dashboard";
+        router.push(dest);
+        return;
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error("Error saving settings:", err);
+      setSaveError("Failed to save your changes. Please check your connection and try again.");
     } finally {
       setSaving(false);
     }
@@ -486,16 +498,21 @@ export default function SettingsPage() {
               )}
 
               {/* Save button — shared across tabs */}
-              <div className="flex items-center gap-4 mt-6">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-6 py-3 bg-[#d97757] hover:bg-[#c86843] disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
-                >
-                  {saving ? "Saving…" : "Save Changes"}
-                </button>
-                {saved && (
-                  <span className="text-sm text-[#788c5d] font-medium">Changes saved ✓</span>
+              <div className="flex flex-col gap-3 mt-6">
+                <div className="flex items-center gap-4">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-6 py-3 bg-[#d97757] hover:bg-[#c86843] disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
+                  >
+                    {saving ? "Saving…" : "Save Changes"}
+                  </button>
+                  {saved && (
+                    <span className="text-sm text-[#788c5d] font-medium">Changes saved ✓</span>
+                  )}
+                </div>
+                {saveError && (
+                  <p className="text-sm text-red-600">{saveError}</p>
                 )}
               </div>
 

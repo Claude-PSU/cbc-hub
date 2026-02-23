@@ -303,6 +303,7 @@ export default function EventsPage() {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [eventsError, setEventsError] = useState<string | null>(null);
   const [rsvping, setRsvping] = useState<string | null>(null);
+  const [rsvpError, setRsvpError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/events")
@@ -347,13 +348,14 @@ export default function EventsPage() {
   const handleRsvp = async (eventId: string) => {
     if (!user) { router.push("/auth"); return; }
     setRsvping(eventId);
+    setRsvpError(null);
     const ref = doc(db, "rsvps", eventId, "attendees", user.uid);
     const isRsvped = userRsvps.has(eventId);
     try {
       if (isRsvped) {
+        await deleteDoc(ref);
         setUserRsvps((prev) => { const next = new Set(prev); next.delete(eventId); return next; });
         setRsvpData((prev) => ({ ...prev, [eventId]: (prev[eventId] ?? []).filter((a) => a.userId !== user.uid) }));
-        await deleteDoc(ref);
       } else {
         const newAttendee: Attendee = {
           userId: user.uid,
@@ -361,12 +363,13 @@ export default function EventsPage() {
           email: user.email ?? "",
           rsvpedAt: new Date().toISOString(),
         };
+        await setDoc(ref, { displayName: newAttendee.displayName, email: newAttendee.email, rsvpedAt: newAttendee.rsvpedAt });
         setUserRsvps((prev) => new Set(prev).add(eventId));
         setRsvpData((prev) => ({ ...prev, [eventId]: [...(prev[eventId] ?? []), newAttendee] }));
-        await setDoc(ref, { displayName: newAttendee.displayName, email: newAttendee.email, rsvpedAt: newAttendee.rsvpedAt });
       }
     } catch (err) {
       console.error("RSVP error:", err);
+      setRsvpError("Something went wrong updating your RSVP. Please try again.");
       await fetchRsvps(events);
     } finally {
       setRsvping(null);
@@ -384,6 +387,20 @@ export default function EventsPage() {
     currentUserId: user?.uid,
     onRsvp: handleRsvp,
   };
+
+  const RsvpErrorBanner = rsvpError ? (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+      <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+        <p className="text-sm text-red-600">{rsvpError}</p>
+        <button
+          onClick={() => setRsvpError(null)}
+          className="text-red-400 hover:text-red-600 text-xs shrink-0"
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <div className="min-h-screen bg-[#faf9f5]">
@@ -483,6 +500,7 @@ export default function EventsPage() {
           </div>
         ) : (
           <div className="space-y-10">
+            {RsvpErrorBanner}
             <EventSection label="Today" events={groups.today} {...sectionProps} />
             <EventSection label="This Week" events={groups.thisWeek} {...sectionProps} />
             <EventSection label="This Month" events={groups.thisMonth} {...sectionProps} />

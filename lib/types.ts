@@ -23,6 +23,14 @@ export interface Resource {
   published: boolean;
 }
 
+export type MemberRole = "Admin" | "Executive Board Member" | "General Member";
+
+export const MEMBER_ROLES: MemberRole[] = [
+  "Admin",
+  "Executive Board Member",
+  "General Member",
+];
+
 export interface MemberProfile {
   uid: string;
   email: string;
@@ -37,7 +45,9 @@ export interface MemberProfile {
   updatedAt: string;
   createdAt?: string;
   isAdmin?: boolean;
+  roles?: MemberRole[];
   referralSource?: string;
+  utmSource?: string;
   githubUsername?: string;
   linkedinUrl?: string;
   profilePublic?: boolean;
@@ -103,6 +113,16 @@ export interface Project {
   submittedAt: string; // ISO
   approvedAt?: string; // ISO
   adminNote?: string;
+}
+
+export interface AttendanceRecord {
+  uid: string;
+  displayName: string;
+  email: string;
+  checkedInAt: string; // ISO
+  eventId: string;
+  eventTitle: string;
+  eventStart: string; // ISO — denormalized for display
 }
 
 export interface CaseStudy {

@@ -10,6 +10,8 @@ export interface CalendarEvent {
   start: string;
   end: string;
   isAllDay: boolean;
+  // Persisted admin config — not from Google Calendar
+  qrRedirectUrl?: string;
 }
 
 interface GoogleCalendarItem {
