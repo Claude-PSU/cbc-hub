@@ -170,7 +170,8 @@ export default function MembersPage() {
         .then((snap) => {
           const publicMembers: PublicMember[] = snap.docs
             .map((d) => ({ id: d.id, ...d.data() } as PublicMember))
-            .filter((m) => m.profilePublic !== false); // undefined = public (default)
+            .filter((m) => m.profilePublic !== false) // undefined = public (default)
+            .filter((m) => m.displayName && m.major && m.year && m.college && m.techLevel); // Only completed profiles
 
           setMembers(publicMembers);
           setLoading(false);

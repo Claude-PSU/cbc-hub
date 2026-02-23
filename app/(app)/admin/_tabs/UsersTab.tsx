@@ -5,7 +5,7 @@ import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import type { MemberProfile, MemberRole } from "@/lib/types";
 import { MEMBER_ROLES } from "@/lib/types";
-import { Loader2, Trash2, Search, ChevronDown } from "lucide-react";
+import { Loader2, Trash2, Search, ChevronDown, AlertCircle } from "lucide-react";
 
 const ROLE_STYLES: Record<MemberRole, string> = {
   Admin: "bg-[#d97757]/10 text-[#d97757] border border-[#d97757]/20",
@@ -168,9 +168,16 @@ export default function UsersTab({ currentUserUid }: { currentUserUid: string })
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e8e6dc]">
-                {filteredMembers.map((member) => (
-                  <tr key={member.id} className="hover:bg-[#faf9f5] transition-colors">
-                    <td className="px-6 py-4 text-[#141413] font-medium">{member.displayName}</td>
+                {filteredMembers.map((member) => {
+                  const isIncomplete = !member.displayName || !member.major || !member.year || !member.college || !member.techLevel;
+                  return (
+                  <tr key={member.id} className={`hover:bg-[#faf9f5] transition-colors ${isIncomplete ? "bg-orange-50/50" : ""}`}>
+                    <td className="px-6 py-4 text-[#141413] font-medium flex items-center gap-2">
+                      {member.displayName || <span className="text-[#b0aea5] text-sm italic">No name set</span>}
+                      {isIncomplete && (
+                        <AlertCircle size={14} className="text-orange-500 shrink-0" aria-label="Profile incomplete" />
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-[#b0aea5] text-xs">{member.email}</td>
                     <td className="px-6 py-4 text-[#b0aea5] text-sm">{member.year || "—"}</td>
                     <td className="px-6 py-4 text-[#b0aea5] text-sm">{member.college || "—"}</td>
@@ -261,7 +268,8 @@ export default function UsersTab({ currentUserUid }: { currentUserUid: string })
                       </div>
                     </td>
                   </tr>
-                ))}
+                );
+                })}
               </tbody>
             </table>
           </div>
