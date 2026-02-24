@@ -96,7 +96,7 @@ function CheckInForm() {
             createdAt: Timestamp.now(),
             used: false,
           });
-          setTimeout(() => router.replace(`/api/checkin-redirect?token=${token}&eventId=${eventId}`), 2500);
+          setTimeout(() => { window.location.replace(`/api/checkin-redirect?token=${token}&eventId=${eventId}`); }, 2500);
           return;
         }
 
@@ -144,7 +144,7 @@ function CheckInForm() {
         console.log("✓ Check-in successful. Token created:", token.substring(0, 8) + "...");
         setTimeout(() => {
           console.log("→ Redirecting to token validation endpoint...");
-          router.replace(`/api/checkin-redirect?token=${token}&eventId=${eventId}`);
+          window.location.replace(`/api/checkin-redirect?token=${token}&eventId=${eventId}`);
         }, 2500);
       } catch (err) {
         console.error("Check-in error:", err);
