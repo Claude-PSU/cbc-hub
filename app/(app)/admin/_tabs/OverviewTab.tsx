@@ -33,7 +33,7 @@ interface EventRsvpSummary {
 interface TopMember {
   displayName: string;
   email: string;
-  rsvpCount: number;
+  checkInCount: number;
 }
 
 interface RetentionRow {
@@ -60,7 +60,7 @@ interface AdminStats {
   newsletterOptIn: number;
 
   // Attendance (QR check-ins)
-  attendanceRate: number;        // % of members who checked in to ≥1 event
+  attendanceRate: number;        // sum(check-ins) / sum(members at time of each past event)
   totalCheckIns: number;
   membersCheckedIn: number;
 
@@ -342,7 +342,13 @@ export default function OverviewTab() {
 
         // Track check-in UIDs across all events for attendance rate
         const checkedInUids = new Set<string>();
+        const memberCheckInCounts: Record<string, number> = {};
         let totalCheckIns = 0;
+        // Aggregate numerator/denominator for attendance rate:
+        // rate = sum(checkIns per past event) / sum(members who existed at each past event)
+        let attendanceCheckInsSum = 0;
+        let attendanceMembersSum = 0;
+        const now = new Date();
 
         await Promise.all(
           events.map(async (event) => {
@@ -362,8 +368,17 @@ export default function OverviewTab() {
 
             checkInSnap.docs.forEach((d) => {
               checkedInUids.add(d.id);
+              memberCheckInCounts[d.id] = (memberCheckInCounts[d.id] ?? 0) + 1;
               totalCheckIns++;
             });
+
+            // Only count past events toward attendance rate
+            const eventEnd = event.end ? new Date(event.end) : (event.start ? new Date(event.start) : null);
+            if (eventEnd && eventEnd <= now) {
+              const membersAtTime = members.filter((m) => !m.createdAt || new Date(m.createdAt) <= eventEnd).length;
+              attendanceCheckInsSum += checkInSnap.size;
+              attendanceMembersSum += membersAtTime;
+            }
 
             eventRsvpBreakdown.push({
               eventId: event.id,
@@ -385,14 +400,14 @@ export default function OverviewTab() {
         const engagementRate = totalMembers > 0 ? (engagedMemberUids.size / totalMembers) * 100 : 0;
         const membersWithNoRsvps = totalMembers - engagedMemberUids.size;
 
-        // Top 5 most active members
-        const topActiveMembers: TopMember[] = Object.entries(memberRsvpCounts)
+        // Top 5 most active members by check-in count
+        const topActiveMembers: TopMember[] = Object.entries(memberCheckInCounts)
           .sort(([, a], [, b]) => b - a)
           .slice(0, 5)
           .map(([uid, count]) => ({
             displayName: memberMap[uid]?.displayName || "Unknown",
             email: memberMap[uid]?.email || uid,
-            rsvpCount: count,
+            checkInCount: count,
           }));
 
         // ── Retention Rate ────────────────────────────────────────────────
@@ -435,7 +450,8 @@ export default function OverviewTab() {
         const caseStudies = caseStudiesSnap.docs.map((d) => d.data() as CaseStudy);
 
         const membersCheckedIn = checkedInUids.size;
-        const attendanceRate = totalMembers > 0 ? (membersCheckedIn / totalMembers) * 100 : 0;
+        // Attendance rate: total check-ins / total members-at-event-time across all past events
+        const attendanceRate = attendanceMembersSum > 0 ? (attendanceCheckInsSum / attendanceMembersSum) * 100 : 0;
 
         setStats({
           totalMembers,
@@ -651,13 +667,13 @@ export default function OverviewTab() {
                       <p className="text-xs text-[#b0aea5] truncate">{member.email}</p>
                     </div>
                     <div className="shrink-0 flex items-center gap-1 bg-[#d97757]/10 text-[#d97757] text-xs font-semibold px-2.5 py-1 rounded-full">
-                      <Calendar size={11} />
-                      {member.rsvpCount}
+                      <CheckCircle size={11} />
+                      {member.checkInCount}
                     </div>
                   </div>
                 ))}
                 {stats.topActiveMembers.length === 0 && (
-                  <div className="px-5 py-8 text-center text-xs text-[#b0aea5]">No RSVP data yet.</div>
+                  <div className="px-5 py-8 text-center text-xs text-[#b0aea5]">No check-in data yet.</div>
                 )}
               </div>
             </div>

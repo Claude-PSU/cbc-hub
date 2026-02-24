@@ -595,6 +595,14 @@ export default function DashboardPage() {
                 </span>
               </div>
             )}
+            {!loadingAttendance && attendedEvents.length > 0 && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.07] border border-white/[0.12] rounded-full">
+                <CheckCircle size={11} className="text-[#b0aea5]" />
+                <span className="text-xs text-[#b0aea5] font-medium">
+                  {attendedEvents.length} event{attendedEvents.length !== 1 ? "s" : ""} attended
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </section>
