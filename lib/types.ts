@@ -74,6 +74,8 @@ export interface StoredEvent {
   end: string;
   isAllDay: boolean;
   syncedAt: string;
+  checkInOpen?: boolean; // whether check-in is currently open for this event
+  qrRedirectUrl?: string; // where to redirect after check-in
 }
 
 export interface ChatMessage {

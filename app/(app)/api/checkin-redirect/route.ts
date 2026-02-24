@@ -1,5 +1,4 @@
 import { getAdminDb } from "@/lib/firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -34,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     // Verify token hasn't expired (TTL is 5 minutes)
     const createdAt = tokenData.createdAt.toDate();
-    const expiresAt = createdAt.getTime() + 5 * 60 * 1000; // 5 minutes
+    const expiresAt = createdAt.getTime() + 5 * 60 * 1000;
     if (Date.now() > expiresAt) {
       return NextResponse.json({ error: "Token expired" }, { status: 401 });
     }
