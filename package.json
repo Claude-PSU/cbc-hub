@@ -10,10 +10,12 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@types/marked": "^5.0.2",
     "@types/nodemailer": "^7.0.10",
     "firebase": "^12.9.0",
     "firebase-admin": "^13.6.1",
     "lucide-react": "^0.575.0",
+    "marked": "^17.0.3",
     "next": "16.1.6",
     "nodemailer": "^8.0.1",
     "qrcode.react": "^4.2.0",

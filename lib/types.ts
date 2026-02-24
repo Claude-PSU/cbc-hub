@@ -55,6 +55,16 @@ export interface MemberProfile {
   emailPasswordAccountVerified?: boolean;
 }
 
+/** Maps {{varName}} in email templates → MemberProfile field.
+ *  Adding an entry here automatically propagates to the toolbar hint and per-recipient detection. */
+export const EMAIL_PROFILE_VAR_MAP = {
+  name: "displayName",
+  major: "major",
+  year: "year",
+  college: "college",
+  techLevel: "techLevel",
+} as const satisfies Partial<Record<string, keyof MemberProfile>>;
+
 export interface StoredEvent {
   id: string;
   title: string;
@@ -69,6 +79,29 @@ export interface StoredEvent {
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+// ── Email ──────────────────────────────────────────────────────────────────────
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body: string; // raw markdown
+  createdAt: string; // ISO
+  createdBy: string; // Firebase UID
+}
+
+export interface EmailLog {
+  id: string;
+  subject: string;
+  bodyExcerpt: string; // first 120 chars of raw body
+  segment: string; // human-readable label
+  recipientCount: number;
+  sentAt: string; // ISO
+  sentBy: string; // Firebase UID
+  displayName: string;
+  isScheduled?: boolean;
 }
 
 export type ProjectTechLevel = "beginner" | "intermediate" | "advanced";

@@ -1,8 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { marked } from "marked";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin";
+import { EMAIL_PROFILE_VAR_MAP } from "@/lib/types";
 
 type Segment = "all" | { eventId: string };
+
+interface RecipientProfile {
+  email: string;
+  displayName: string;
+  major: string;
+  year: string;
+  college: string;
+  techLevel: string;
+}
+
+/** Matches any user-specific template variable — drives per-recipient vs. BCC decision. */
+const USER_VAR_REGEX = new RegExp(
+  `\\{\\{(${Object.keys(EMAIL_PROFILE_VAR_MAP).join("|")})\\}\\}`
+);
+
+function resolveProfileVars(template: string, profile: RecipientProfile): string {
+  return (Object.entries(EMAIL_PROFILE_VAR_MAP) as [string, keyof RecipientProfile][]).reduce(
+    (t, [varName, field]) =>
+      t.replace(new RegExp(`\\{\\{${varName}\\}\\}`, "g"), profile[field] || ""),
+    template
+  );
+}
+
+function resolveEventVars(
+  template: string,
+  ev: FirebaseFirestore.DocumentData
+): string {
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  const fmtTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const timeRange = ev.isAllDay
+    ? "All Day"
+    : `${fmtTime(ev.start)} – ${fmtTime(ev.end)}`;
+
+  return template
+    .replace(/\{\{eventTitle\}\}/g, ev.title || "")
+    .replace(/\{\{eventDate\}\}/g, ev.start ? fmtDate(ev.start) : "")
+    .replace(/\{\{eventTime\}\}/g, ev.start ? timeRange : "")
+    .replace(/\{\{eventLocation\}\}/g, ev.location || "")
+    .replace(/\{\{eventDescription\}\}/g, ev.description || "");
+}
+
+function buildHtml(resolvedSubject: string, resolvedBody: string): string {
+  const bodyHtml = marked.parse(resolvedBody, { breaks: true }) as string;
+  return `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+      <div style="background:#141413;padding:24px 32px;border-radius:12px 12px 0 0">
+        <p style="color:#d97757;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:0 0 6px">Claude Builder Club · Penn State</p>
+        <h1 style="color:white;margin:0;font-size:22px;font-weight:700;line-height:1.3">${resolvedSubject}</h1>
+      </div>
+      <div style="background:white;padding:32px;border:1px solid #e8e6dc;border-top:none;border-radius:0 0 12px 12px">
+        <div style="color:#333;font-size:14px;line-height:1.7">${bodyHtml}</div>
+        <hr style="border:none;border-top:1px solid #e8e6dc;margin:28px 0 20px"/>
+        <p style="color:#b0aea5;font-size:12px;margin:0;line-height:1.6">
+          You're receiving this as a member of the Claude Builder Club at Penn State University.<br/>
+          Questions? Reply to this email or visit
+          <a href="https://claudepsu.vercel.app" style="color:#d97757;text-decoration:none">our website</a>.
+        </p>
+      </div>
+    </div>
+  `;
+}
 
 export async function POST(req: NextRequest) {
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -29,10 +99,12 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getAdminDb();
+  // Reused below for the email log displayName — no extra read needed.
   const memberDoc = await db.collection("members").doc(uid).get();
   if (!memberDoc.exists || !memberDoc.data()?.isAdmin) {
     return NextResponse.json({ error: "Forbidden: admins only." }, { status: 403 });
   }
+  const adminDisplayName: string = memberDoc.data()?.displayName || "Admin";
 
   // ── Payload ───────────────────────────────────────────────────────────────
   let subject: string;
@@ -49,31 +121,81 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing subject or body." }, { status: 400 });
   }
 
-  // ── Collect recipients ────────────────────────────────────────────────────
-  let emails: string[] = [];
+  subject = subject.trim();
+  body = body.trim();
 
-  if (segment === "all") {
-    const snap = await db.collection("members").get();
-    emails = snap.docs
-      .map((d) => d.data().email as string | undefined)
-      .filter((e): e is string => !!e);
-  } else if (segment && typeof segment === "object" && segment.eventId) {
-    const snap = await db
-      .collection("rsvps")
-      .doc(segment.eventId)
-      .collection("attendees")
-      .get();
-    emails = snap.docs
-      .map((d) => d.data().email as string | undefined)
-      .filter((e): e is string => !!e);
-  } else {
+  // ── Resolve event variables & build segment label ────────────────────────
+  // Event vars ({{eventTitle}}, {{eventDate}}, etc.) are identical for every
+  // recipient, so we substitute them up-front. Only the remaining
+  // user-specific vars ({{name}}, {{major}}, …) require per-recipient sends.
+  let workingSubject = subject;
+  let workingBody = body;
+  let segmentLabel = "All Members";
+
+  if (segment !== "all" && typeof segment === "object" && segment.eventId) {
+    const eventDoc = await db.collection("events").doc(segment.eventId).get();
+    const ev = eventDoc.data();
+    segmentLabel = `RSVPs — ${ev?.title || segment.eventId}`;
+    if (ev) {
+      workingSubject = resolveEventVars(workingSubject, ev);
+      workingBody = resolveEventVars(workingBody, ev);
+    }
+  } else if (segment !== "all") {
     return NextResponse.json({ error: "Invalid segment." }, { status: 400 });
   }
 
-  // Deduplicate
-  emails = [...new Set(emails)];
+  // ── Detect remaining user-specific variables ───────────────────────────────
+  const hasUserVars = USER_VAR_REGEX.test(workingSubject) || USER_VAR_REGEX.test(workingBody);
 
-  if (emails.length === 0) {
+  // ── Collect recipients ────────────────────────────────────────────────────
+  let recipients: RecipientProfile[] = [];
+
+  const toProfile = (data: FirebaseFirestore.DocumentData): RecipientProfile | null =>
+    data.email
+      ? {
+          email: data.email as string,
+          displayName: data.displayName || "",
+          major: data.major || "",
+          year: data.year || "",
+          college: data.college || "",
+          techLevel: data.techLevel || "",
+        }
+      : null;
+
+  if (segment === "all") {
+    const snap = await db.collection("members").get();
+    recipients = snap.docs
+      .map((d) => toProfile(d.data()))
+      .filter((r): r is RecipientProfile => r !== null);
+  } else {
+    // segment.eventId already validated above
+    const eventId = (segment as { eventId: string }).eventId;
+    const attendeesSnap = await db
+      .collection("rsvps")
+      .doc(eventId)
+      .collection("attendees")
+      .get();
+
+    if (!hasUserVars) {
+      // Fast path — attendees subcollection already has email
+      recipients = attendeesSnap.docs
+        .map((d) => toProfile(d.data()))
+        .filter((r): r is RecipientProfile => r !== null);
+    } else {
+      // Need full profiles for user-var resolution
+      const profileDocs = await Promise.all(
+        attendeesSnap.docs.map((d) => db.collection("members").doc(d.id).get())
+      );
+      recipients = profileDocs
+        .map((d) => (d.exists ? toProfile(d.data()!) : null))
+        .filter((r): r is RecipientProfile => r !== null);
+    }
+  }
+
+  // Deduplicate by email
+  const deduped = [...new Map(recipients.map((r) => [r.email, r])).values()];
+
+  if (deduped.length === 0) {
     return NextResponse.json({ error: "No recipients found for that segment." }, { status: 400 });
   }
 
@@ -86,38 +208,47 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const escapedBody = body
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  if (hasUserVars) {
+    // Per-recipient sends — batched concurrency to avoid serial SMTP latency
+    // without flooding Gmail's connection pool.
+    const BATCH = 10;
+    for (let i = 0; i < deduped.length; i += BATCH) {
+      await Promise.all(
+        deduped.slice(i, i + BATCH).map((r) => {
+          const resolvedSubject = resolveProfileVars(workingSubject, r);
+          const resolvedBody = resolveProfileVars(workingBody, r);
+          return transporter.sendMail({
+            from: `"Claude Builder Club" <${process.env.GMAIL_USER}>`,
+            to: r.email,
+            subject: resolvedSubject,
+            text: resolvedBody,
+            html: buildHtml(resolvedSubject, resolvedBody),
+          });
+        })
+      );
+    }
+  } else {
+    // Single BCC send — event vars already substituted into workingSubject/Body
+    await transporter.sendMail({
+      from: `"Claude Builder Club" <${process.env.GMAIL_USER}>`,
+      to: process.env.GMAIL_USER,
+      bcc: deduped.map((r) => r.email).join(", "),
+      subject: workingSubject,
+      text: workingBody,
+      html: buildHtml(workingSubject, workingBody),
+    });
+  }
 
-  const html = `
-    <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-      <div style="background:#141413;padding:24px 32px;border-radius:12px 12px 0 0">
-        <p style="color:#d97757;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:0 0 6px">Claude Builder Club · Penn State</p>
-        <h1 style="color:white;margin:0;font-size:22px;font-weight:700;line-height:1.3">${subject}</h1>
-      </div>
-      <div style="background:white;padding:32px;border:1px solid #e8e6dc;border-top:none;border-radius:0 0 12px 12px">
-        <div style="color:#333;font-size:14px;line-height:1.7;white-space:pre-wrap">${escapedBody}</div>
-        <hr style="border:none;border-top:1px solid #e8e6dc;margin:28px 0 20px"/>
-        <p style="color:#b0aea5;font-size:12px;margin:0;line-height:1.6">
-          You're receiving this as a member of the Claude Builder Club at Penn State University.<br/>
-          Questions? Reply to this email or visit
-          <a href="https://claudepsu.vercel.app" style="color:#d97757;text-decoration:none">our website</a>.
-        </p>
-      </div>
-    </div>
-  `;
-
-  // Send as a single email with all recipients BCC'd to protect privacy
-  await transporter.sendMail({
-    from: `"Claude Builder Club" <${process.env.GMAIL_USER}>`,
-    to: process.env.GMAIL_USER,
-    bcc: emails.join(", "),
-    subject: subject.trim(),
-    text: body.trim(),
-    html,
+  await db.collection("emailLogs").add({
+    subject,
+    bodyExcerpt: body.slice(0, 120),
+    segment: segmentLabel,
+    recipientCount: deduped.length,
+    sentAt: new Date().toISOString(),
+    sentBy: uid,
+    displayName: adminDisplayName,
+    isScheduled: false,
   });
 
-  return NextResponse.json({ ok: true, count: emails.length });
+  return NextResponse.json({ ok: true, count: deduped.length });
 }
