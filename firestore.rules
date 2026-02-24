@@ -101,8 +101,11 @@ service cloud.firestore {
 
     // ─── Attendance (QR check-ins) ────────────────────────────────────────────
     match /attendance/{eventId}/checkins/{uid} {
-      // Members can read and create their own check-in (idempotent overwrite is fine)
-      allow read, create, update: if request.auth != null && request.auth.uid == uid && isMember();
+      // Members can read and create their own check-in only if check-in is open
+      allow read, create, update: if request.auth != null &&
+        request.auth.uid == uid &&
+        isMember() &&
+        get(/databases/$(database)/documents/events/$(eventId)).data.checkInOpen != false;
 
       // Admins can read and write all check-ins
       allow read, write: if isAdmin();
@@ -125,6 +128,13 @@ service cloud.firestore {
       allow read: if request.auth != null
         && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.isAdmin == true;
       allow write: if false;
+    }
+
+    // ─── Check-In Tokens (single-use, short-lived) ────────────────────────────────
+    // Tokens are managed by admin SDK in API routes, not directly via client SDK
+    match /checkInTokens/{tokenId} {
+      allow create: if request.auth != null && isMember();
+      allow read, write: if false;
     }
 
   }

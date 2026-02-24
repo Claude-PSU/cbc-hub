@@ -5,7 +5,7 @@ import { collection, getDocs, doc, setDoc, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase";
 import type { CalendarEvent } from "@/app/(app)/api/events/route";
 import type { AttendanceRecord } from "@/lib/types";
-import { Loader2, ChevronDown, Users, MapPin, Clock, RefreshCw, QrCode, Download, Copy, X, CheckCircle2 } from "lucide-react";
+import { Loader2, ChevronDown, Users, MapPin, Clock, RefreshCw, QrCode, Download, Copy, X, CheckCircle2, Lock, Unlock } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 
 interface Attendee {
@@ -60,7 +60,8 @@ function QrModal({ event, onClose, onRedirectSaved }: {
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const isValidRedirect = redirectUrl.startsWith("/") || redirectUrl.startsWith("https://") || redirectUrl.startsWith("http://");
-  const checkInUrl = `${origin}/checkin/${event.id}?redirect=${encodeURIComponent(isValidRedirect ? redirectUrl : "/dashboard")}`;
+  // QR code only contains check-in URL; redirect URL is protected by single-use tokens on server
+  const checkInUrl = `${origin}/checkin/${event.id}`;
 
   // Debounced auto-save to Firestore whenever the redirect URL changes
   useEffect(() => {
@@ -157,7 +158,7 @@ function QrModal({ event, onClose, onRedirectSaved }: {
             }`}
           />
           <p className="text-[10px] text-[#b0aea5] mt-1">
-            Relative path (e.g. <code>/dashboard</code>) or full URL (e.g. <code>https://jotform.com/…</code>)
+            Where users go after check-in (protected by single-use token). Path (e.g. <code>/dashboard</code>) or URL (e.g. <code>https://jotform.com/…</code>)
           </p>
         </div>
 
@@ -196,6 +197,8 @@ export default function EventsTab() {
   const [syncedAtMap, setSyncedAtMap] = useState<Record<string, string>>({});
   const [attendeesMap, setAttendeesMap] = useState<Record<string, Attendee[]>>({});
   const [attendanceMap, setAttendanceMap] = useState<Record<string, AttendanceRecord[]>>({});
+  const [checkInOpenMap, setCheckInOpenMap] = useState<Record<string, boolean>>({});
+  const [togglingCheckIn, setTogglingCheckIn] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -209,15 +212,33 @@ export default function EventsTab() {
     setQrEvent((prev) => prev?.id === eventId ? { ...prev, qrRedirectUrl: url } : prev);
   }, []);
 
+  const handleToggleCheckIn = async (eventId: string) => {
+    setTogglingCheckIn(eventId);
+    const currentStatus = checkInOpenMap[eventId] ?? true;
+    const newStatus = !currentStatus;
+    try {
+      await updateDoc(doc(db, "events", eventId), { checkInOpen: newStatus });
+      setCheckInOpenMap((prev) => ({ ...prev, [eventId]: newStatus }));
+    } catch (err) {
+      console.error("Error toggling check-in status:", err);
+    } finally {
+      setTogglingCheckIn(null);
+    }
+  };
+
   const loadFirestoreData = useCallback(async (eventList: CalendarEvent[]) => {
-    // Load syncedAt metadata from Firestore events collection
+    // Load syncedAt metadata and checkInOpen status from Firestore events collection
     const syncSnap = await getDocs(collection(db, "events"));
     const syncMap: Record<string, string> = {};
+    const checkInMap: Record<string, boolean> = {};
     syncSnap.docs.forEach((d) => {
       const data = d.data();
       if (data.syncedAt) syncMap[d.id] = data.syncedAt;
+      // Default to true if not set (check-in is open by default)
+      checkInMap[d.id] = data.checkInOpen !== false;
     });
     setSyncedAtMap(syncMap);
+    setCheckInOpenMap(checkInMap);
 
     // Load RSVPs and attendance check-ins for each event in parallel
     const attendeesData: Record<string, Attendee[]> = {};
@@ -398,6 +419,12 @@ export default function EventsTab() {
                             {past && (
                               <span className="text-xs px-2 py-0.5 bg-[#e8e6dc] text-[#b0aea5] rounded-full">Past</span>
                             )}
+                            {!(checkInOpenMap[event.id] ?? true) && (
+                              <span className="text-xs px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-full flex items-center gap-1">
+                                <Lock size={10} />
+                                Check-in Closed
+                              </span>
+                            )}
                             {syncedAt ? (
                               <span className="text-xs px-2 py-0.5 bg-[#788c5d]/10 text-[#788c5d] rounded-full">
                                 Synced {timeAgo(syncedAt)}
@@ -437,8 +464,26 @@ export default function EventsTab() {
                         />
                       </button>
 
-                      {/* QR button — sibling of the toggle, not nested inside it */}
-                      <div className="pr-4 shrink-0">
+                      {/* Check-in toggle and QR button — siblings of the toggle, not nested inside it */}
+                      <div className="pr-4 shrink-0 flex items-center gap-2">
+                        <button
+                          onClick={() => handleToggleCheckIn(event.id)}
+                          disabled={togglingCheckIn === event.id}
+                          className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-60 ${
+                            checkInOpenMap[event.id] ?? true
+                              ? "border border-[#e8e6dc] text-[#788c5d] hover:bg-[#788c5d]/5 hover:border-[#788c5d]/30"
+                              : "border border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100"
+                          }`}
+                          title={checkInOpenMap[event.id] ?? true ? "Close check-in" : "Open check-in"}
+                        >
+                          {togglingCheckIn === event.id ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : checkInOpenMap[event.id] ?? true ? (
+                            <Unlock size={12} />
+                          ) : (
+                            <Lock size={12} />
+                          )}
+                        </button>
                         <button
                           onClick={() => setQrEvent(event)}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[#e8e6dc] rounded-lg text-[#555555] hover:bg-[#faf9f5] hover:border-[#d97757]/30 hover:text-[#d97757] transition-colors"

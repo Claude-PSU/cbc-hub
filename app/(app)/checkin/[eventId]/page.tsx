@@ -5,12 +5,21 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { StoredEvent, AttendanceRecord } from "@/lib/types";
 import { CheckCircle, Loader2, AlertCircle, Calendar, MapPin, Clock } from "lucide-react";
 import ClubLogo from "@/components/ClubLogo";
 import Link from "next/link";
+
+function generateToken(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let token = "";
+  for (let i = 0; i < 32; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
+}
 
 type CheckInState =
   | "loading"        // determining auth / fetching event
@@ -18,6 +27,7 @@ type CheckInState =
   | "success"        // wrote successfully
   | "already_in"    // already checked in
   | "event_not_found"
+  | "checkin_closed" // check-in is not currently open
   | "error";
 
 function formatEventTime(start: string, isAllDay: boolean): string {
@@ -64,11 +74,25 @@ function CheckInForm() {
         const eventData = { id: eventSnap.id, ...eventSnap.data() } as StoredEvent;
         setEvent(eventData);
 
+        // Check if check-in is open for this event
+        if (eventData.checkInOpen === false) {
+          setState("checkin_closed");
+          return;
+        }
+
         // Check if already checked in
         const existingSnap = await getDoc(doc(db, "attendance", eventId, "checkins", user.uid));
         if (existingSnap.exists()) {
           setState("already_in");
-          setTimeout(() => router.replace(safeRedirect), 2500);
+          // Generate token for already-checked-in users too, so they still get the redirect
+          const token = generateToken();
+          await setDoc(doc(db, "checkInTokens", token), {
+            eventId,
+            uid: user.uid,
+            createdAt: Timestamp.now(),
+            used: false,
+          });
+          setTimeout(() => router.replace(`/api/checkin-redirect?token=${token}&eventId=${eventId}`), 2500);
           return;
         }
 
@@ -102,8 +126,18 @@ function CheckInForm() {
           setDoc(doc(db, "members", user.uid, "attendance", eventId), record),
         ]);
 
+        // Generate single-use token for redirect
+        const token = generateToken();
+        await setDoc(doc(db, "checkInTokens", token), {
+          eventId,
+          uid: user.uid,
+          createdAt: Timestamp.now(),
+          used: false,
+        });
+
         setState("success");
-        setTimeout(() => router.replace(safeRedirect), 2500);
+        // Redirect through validation endpoint which will verify token and redirect to the configured URL
+        setTimeout(() => router.replace(`/api/checkin-redirect?token=${token}&eventId=${eventId}`), 2500);
       } catch (err) {
         console.error("Check-in error:", err);
         setErrorMsg((err as Error).message ?? "Something went wrong.");
@@ -177,6 +211,29 @@ function CheckInForm() {
           <p className="text-sm text-[#b0aea5] max-w-xs">
             This QR code may be outdated. Ask an admin to re-sync events and regenerate the QR code.
           </p>
+        </div>
+        <Link href="/dashboard" className="text-sm font-medium text-[#d97757] hover:underline">
+          Go to Dashboard
+        </Link>
+      </div>
+    );
+  }
+
+  // ── Check-in closed ────────────────────────────────────────────────────────────
+  if (state === "checkin_closed") {
+    return (
+      <div className="min-h-screen bg-[#faf9f5] flex flex-col items-center justify-center gap-6 px-4">
+        <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center">
+          <AlertCircle size={28} className="text-amber-500" />
+        </div>
+        <div className="text-center">
+          <h1 className="heading text-xl font-bold text-[#141413] mb-2">Check-In Not Open</h1>
+          <p className="text-sm text-[#b0aea5] max-w-xs">
+            Check-in for this event is not currently open. Please try again later.
+          </p>
+          {event && (
+            <p className="text-sm text-[#555555] font-medium mt-3">{event.title}</p>
+          )}
         </div>
         <Link href="/dashboard" className="text-sm font-medium text-[#d97757] hover:underline">
           Go to Dashboard
