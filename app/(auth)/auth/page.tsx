@@ -49,10 +49,19 @@ const perks = [
   { icon: "💻", text: "Showcase your projects to the community" },
 ];
 
+function validatePassword(pw: string): string | null {
+  if (pw.length < 10)           return "Password must be at least 10 characters.";
+  if (!/[A-Z]/.test(pw))        return "Password must contain an uppercase letter.";
+  if (!/[a-z]/.test(pw))        return "Password must contain a lowercase letter.";
+  if (!/[^A-Za-z0-9]/.test(pw)) return "Password must contain a special character.";
+  return null;
+}
+
 function AuthForm() {
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -110,6 +119,11 @@ function AuthForm() {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (mode === "signup") {
+      const pwError = validatePassword(password);
+      if (pwError) { setError(pwError); return; }
+      if (password !== confirmPassword) { setError("Passwords do not match."); return; }
+    }
     setLoading(true);
     try {
       if (mode === "signup") {
@@ -325,10 +339,38 @@ function AuthForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                minLength={6}
+                minLength={10}
                 className="w-full px-4 py-3 border border-[#e8e6dc] rounded-xl text-sm focus:outline-none focus:border-[#d97757] focus:ring-1 focus:ring-[#d97757]/20 bg-white text-[#141413]"
               />
+              {mode === "signup" && (
+                <p className="mt-1.5 text-xs text-[#b0aea5]">
+                  10+ characters, uppercase, lowercase, and a special character.
+                </p>
+              )}
             </div>
+
+            {mode === "signup" && (
+              <div>
+                <label className="block text-sm font-medium text-[#141413] mb-1.5">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-1 bg-white text-[#141413] ${
+                    confirmPassword && confirmPassword !== password
+                      ? "border-red-300 focus:border-red-400 focus:ring-red-200/50"
+                      : "border-[#e8e6dc] focus:border-[#d97757] focus:ring-[#d97757]/20"
+                  }`}
+                />
+                {confirmPassword && confirmPassword !== password && (
+                  <p className="mt-1.5 text-xs text-red-500">Passwords do not match.</p>
+                )}
+              </div>
+            )}
 
             {error && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
@@ -357,6 +399,7 @@ function AuthForm() {
               onClick={() => {
                 setMode(mode === "signin" ? "signup" : "signin");
                 setError("");
+                setConfirmPassword("");
               }}
               className="text-[#d97757] hover:underline font-medium"
             >

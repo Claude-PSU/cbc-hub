@@ -77,11 +77,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!password || password.length < 6) {
-    return NextResponse.json(
-      { error: "Password must be at least 6 characters." },
-      { status: 400 }
-    );
+  if (!password || password.length < 10) {
+    return NextResponse.json({ error: "Password must be at least 10 characters." }, { status: 400 });
+  }
+  if (!/[A-Z]/.test(password)) {
+    return NextResponse.json({ error: "Password must contain at least one uppercase letter." }, { status: 400 });
+  }
+  if (!/[a-z]/.test(password)) {
+    return NextResponse.json({ error: "Password must contain at least one lowercase letter." }, { status: 400 });
+  }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return NextResponse.json({ error: "Password must contain at least one special character." }, { status: 400 });
   }
 
   try {
