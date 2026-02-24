@@ -126,11 +126,14 @@ Public-facing event browser (RSVP requires auth):
 
 ### Event Check-In (`/checkin/[eventId]`)
 
-QR code-based attendance tracking for in-person events:
+QR code-based attendance tracking with secure single-use redirect:
 
-- Accessible to authenticated members.
-- Displays a scannable QR code that marks attendance in Firestore.
-- Used by event organizers to log meeting attendance quickly.
+- Accessible to authenticated, onboarded members only.
+- Admins open and close check-in per event from the Events tab; scanning while closed shows a "Check-In Not Open" screen.
+- On successful check-in, attendance is written to `attendance/{eventId}/checkins/{uid}` and denormalized to `members/{uid}/attendance/{eventId}`.
+- A **single-use token** (32-char random string, 5-minute TTL) is generated and stored in `checkInTokens/{token}`. The token is consumed server-side by `/api/checkin-redirect`, which validates it, marks it `used: true`, and sets a short-lived `HttpOnly` cookie containing the real destination URL.
+- The user is then redirected to `/checkin/[eventId]/form`, a server-rendered page that reads the cookie and renders the destination in a full-screen `<iframe>`. The real URL never appears in the browser address bar or history.
+- Already-checked-in users who scan again are shown a confirmation screen and still receive a fresh token, taking them back to the destination form.
 
 ### Resources (`/resources`)
 
@@ -200,7 +203,7 @@ Restricted to users with `isAdmin: true` in their Firestore member document. Sev
 | Resources | Create, edit, publish/unpublish, and reorder learning resources |
 | Case Studies | Create and manage academic/club case studies |
 | Users | View all members, promote to admin, search and filter, delete accounts |
-| Events | Sync events from Google Calendar into Firestore; view all synced events |
+| Events | Sync events from Google Calendar into Firestore; open/close check-in per event; set the post-check-in redirect URL; generate and display QR codes |
 | Projects | Moderation queue — approve, reject, or request changes on pending project submissions; toggle `featured` flag |
 | Email | Compose and send bulk emails to segmented member lists; supports template variables (`{{name}}`, `{{major}}`, etc.); preview recipient count before sending |
 
@@ -218,7 +221,6 @@ web/
 │   │   ├── contact/page.tsx            # Contact / partnership form
 │   │   ├── dashboard/page.tsx          # Member dashboard
 │   │   ├── events/page.tsx             # Events browser + RSVP
-│   │   ├── checkin/[eventId]/page.tsx  # QR code event check-in
 │   │   ├── resources/page.tsx          # Resource hub
 │   │   ├── members/
 │   │   │   ├── page.tsx                # Member directory
@@ -249,6 +251,7 @@ web/
 │   │       │   ├── register/route.ts       # Email/password registration
 │   │       │   ├── send-verification/route.ts  # Send email verification code
 │   │       │   └── verify-code/route.ts    # Verify submitted code
+│   │       ├── checkin-redirect/route.ts   # Token validation + secure iframe redirect
 │   │       └── admin/
 │   │           ├── delete-user/route.ts
 │   │           ├── sync-events/route.ts
@@ -257,6 +260,12 @@ web/
 │   ├── (auth)/
 │   │   ├── auth/page.tsx               # Sign in / sign up
 │   │   └── verify-email/page.tsx       # Email verification code entry
+│   ├── (checkIn)/                      # Standalone layout (no Navbar/Footer)
+│   │   └── checkin/[eventId]/
+│   │       ├── page.tsx                # QR code event check-in
+│   │       └── form/
+│   │           ├── layout.tsx          # Minimal root layout for iframe page
+│   │           └── page.tsx            # Reads HttpOnly cookie; renders destination in iframe
 │   ├── layout.tsx                      # Root HTML shell, fonts, metadata
 │   └── globals.css
 ├── components/
@@ -575,7 +584,33 @@ Subcollection tracking per-event RSVPs.
 
 ### `events/{id}` (admin-synced)
 
-Events synced from Google Calendar into Firestore via the admin Events tab. Used for historical tracking and admin overview stats. The live events page reads directly from the Calendar API, not this collection.
+Events synced from Google Calendar into Firestore via the admin Events tab. Used for historical tracking, admin overview stats, and check-in gating. The live events page reads directly from the Calendar API, not this collection.
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | string | Google Calendar event ID |
+| `title` | string | |
+| `description` | string | |
+| `location` | string | |
+| `start` | string | ISO timestamp |
+| `end` | string | ISO timestamp |
+| `isAllDay` | boolean | |
+| `syncedAt` | string | ISO timestamp of last sync |
+| `checkInOpen` | boolean? | Admin-toggled; `false` blocks check-in. Defaults to open if absent |
+| `qrRedirectUrl` | string? | Destination URL shown to members after check-in (via iframe; never exposed client-side) |
+
+### `checkInTokens/{token}`
+
+Short-lived single-use tokens that bridge the check-in page to the secure redirect endpoint.
+
+| Field | Type | Notes |
+|---|---|---|
+| `eventId` | string | The event this token is valid for |
+| `uid` | string | Firebase UID of the member who checked in |
+| `createdAt` | Timestamp | Firestore server timestamp; token expires 5 minutes after creation |
+| `used` | boolean | Set to `true` by `/api/checkin-redirect` on first use; subsequent requests are rejected |
+
+Tokens are created by the client SDK (members can create, not read) and consumed exclusively by the Firebase Admin SDK in the `/api/checkin-redirect` route handler.
 
 ---
 
