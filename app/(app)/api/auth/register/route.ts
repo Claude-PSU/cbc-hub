@@ -68,7 +68,9 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Server-side domain enforcement ────────────────────────────────────────
-  if (!email || !email.toLowerCase().endsWith("@psu.edu")) {
+  const isPsuEmail = email?.toLowerCase().endsWith("@psu.edu");
+  const devBypass = process.env.ALLOW_ANY_EMAIL === "true" && process.env.NODE_ENV !== "production";
+  if (!email || (!isPsuEmail && !devBypass)) {
     return NextResponse.json(
       { error: "Sign-up is restricted to Penn State email addresses (@psu.edu)." },
       { status: 403 }

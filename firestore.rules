@@ -16,9 +16,12 @@ service cloud.firestore {
 
     // ─── Members ──────────────────────────────────────────────────────────────
     match /members/{userId} {
-      // Any authenticated user can read their own profile; admins can read any profile
-      allow read: if request.auth != null &&
-        (request.auth.uid == userId || isAdmin());
+      // Own profile or admin: full access; public profiles: any authenticated user can read
+      allow get: if request.auth != null &&
+        (request.auth.uid == userId || isAdmin() || resource.data.profilePublic == true);
+
+      // Any authenticated user can list/count the collection (e.g. dashboard member count stat)
+      allow list: if request.auth != null;
 
       // Users can create only their own profile, and cannot set isAdmin on creation
       allow create: if request.auth != null &&

@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import ClubLogo from "@/components/ClubLogo";
 
 function VerifyEmailForm() {
-  const { user, loading } = useAuth();
+  const { user, loading, markEmailVerified } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
@@ -43,42 +43,8 @@ function VerifyEmailForm() {
     return () => clearInterval(id);
   }, [resendCooldown]);
 
-  const handleDigitChange = (index: number, value: string) => {
-    // Accept only a single digit, or handle paste of full code
-    const sanitized = value.replace(/\D/g, "");
-    if (sanitized.length > 1) {
-      // Paste: spread across all 6 inputs
-      const chars = sanitized.slice(0, 6).split("");
-      const next = [...digits];
-      chars.forEach((ch, i) => {
-        if (index + i < 6) next[index + i] = ch;
-      });
-      setDigits(next);
-      const focusIndex = Math.min(index + chars.length, 5);
-      inputRefs.current[focusIndex]?.focus();
-      return;
-    }
-    const next = [...digits];
-    next[index] = sanitized;
-    setDigits(next);
-    if (sanitized && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !digits[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = digits.join("");
-    if (code.length < 6) {
-      setError("Please enter all 6 digits.");
-      return;
-    }
+  const submitCode = async (code: string) => {
+    if (code.length < 6 || submitting) return;
     setError("");
     setSubmitting(true);
     try {
@@ -93,7 +59,6 @@ function VerifyEmailForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        // Handle expired code by auto-resending
         if (res.status === 410) {
           setError("Code expired. Sending you a new one...");
           await handleResend();
@@ -102,12 +67,52 @@ function VerifyEmailForm() {
         setError(data.error ?? "Verification failed. Please try again.");
         return;
       }
+      markEmailVerified();
       router.push(next && next.startsWith("/") ? next : "/settings");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleDigitChange = (index: number, value: string) => {
+    // Accept only a single digit, or handle paste of full code
+    const sanitized = value.replace(/\D/g, "");
+    if (sanitized.length > 1) {
+      // Paste: spread across all 6 inputs
+      const chars = sanitized.slice(0, 6).split("");
+      const next = [...digits];
+      chars.forEach((ch, i) => {
+        if (index + i < 6) next[index + i] = ch;
+      });
+      setDigits(next);
+      const focusIndex = Math.min(index + chars.length, 5);
+      inputRefs.current[focusIndex]?.focus();
+      const filled = next.join("");
+      if (filled.length === 6) submitCode(filled);
+      return;
+    }
+    const next = [...digits];
+    next[index] = sanitized;
+    setDigits(next);
+    if (sanitized && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    } else if (sanitized && index === 5) {
+      // Last digit typed — auto-submit
+      submitCode(next.join(""));
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !digits[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleSubmit = async (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    await submitCode(digits.join(""));
   };
 
   const handleResend = async () => {

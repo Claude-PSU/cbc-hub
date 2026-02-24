@@ -19,6 +19,8 @@ import ClubLogo from "@/components/ClubLogo";
 
 type Mode = "signin" | "signup";
 
+const devBypass = process.env.NEXT_PUBLIC_ALLOW_ANY_EMAIL === "true";
+
 const GOOGLE_LOGO = (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
     <path
@@ -164,10 +166,10 @@ function AuthForm() {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ hd: "psu.edu" });
+      if (!devBypass) provider.setCustomParameters({ hd: "psu.edu" });
       const cred = await signInWithPopup(auth, provider);
-      // Verify the domain even if the OAuth hint was bypassed
-      if (!cred.user.email?.toLowerCase().endsWith("@psu.edu")) {
+      // Verify the domain even if the OAuth hint was bypassed (skipped in dev)
+      if (!devBypass && !cred.user.email?.toLowerCase().endsWith("@psu.edu")) {
         await signOut(auth);
         setError("Please use your Penn State Google account (@psu.edu) to sign in.");
         return;
@@ -307,7 +309,7 @@ function AuthForm() {
                 required
                 className="w-full px-4 py-3 border border-[#e8e6dc] rounded-xl text-sm focus:outline-none focus:border-[#d97757] focus:ring-1 focus:ring-[#d97757]/20 bg-white text-[#141413] placeholder:text-[#b0aea5]"
               />
-              {mode === "signup" && (
+              {mode === "signup" && !devBypass && (
                 <p className="mt-1.5 text-xs text-[#b0aea5]">
                   Must be a Penn State address ending in <span className="font-medium text-[#141413]">@psu.edu</span>
                 </p>

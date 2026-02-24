@@ -28,7 +28,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!email.toLowerCase().endsWith("@psu.edu")) {
+  const isPsuEmail = email.toLowerCase().endsWith("@psu.edu");
+  const devBypass = process.env.ALLOW_ANY_EMAIL === "true" && process.env.NODE_ENV !== "production";
+  if (!isPsuEmail && !devBypass) {
     return NextResponse.json(
       { error: "Verification codes are only sent to Penn State email accounts (@psu.edu)." },
       { status: 400 }

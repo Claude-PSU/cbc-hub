@@ -3,7 +3,7 @@ import { Geist, Geist_Mono, Poppins, Lora } from "next/font/google";
 import "../globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { AuthProvider } from "@/lib/auth-context";
+import VerifyEmailGuard from "@/components/VerifyEmailGuard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,10 +51,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <AuthProvider>
+    <>
+      <VerifyEmailGuard />
       <Navbar />
       <main>{children}</main>
       <Footer />
-    </AuthProvider>
+    </>
   );
 }
