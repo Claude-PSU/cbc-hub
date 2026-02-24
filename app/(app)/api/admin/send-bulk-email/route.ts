@@ -11,9 +11,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Initialize outside try/catch so SDK config errors surface as 500, not 401.
+  let adminAuth: ReturnType<typeof getAdminAuth>;
+  try {
+    adminAuth = getAdminAuth();
+  } catch (err) {
+    console.error("Firebase Admin SDK initialization failed:", err);
+    return NextResponse.json({ error: "Server configuration error." }, { status: 500 });
+  }
+
   let uid: string;
   try {
-    const decoded = await getAdminAuth().verifyIdToken(token);
+    const decoded = await adminAuth.verifyIdToken(token);
     uid = decoded.uid;
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

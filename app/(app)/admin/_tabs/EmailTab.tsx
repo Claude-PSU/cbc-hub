@@ -46,7 +46,12 @@ export default function EmailTab() {
     setResult(null);
 
     try {
-      const idToken = await auth.currentUser?.getIdToken();
+      const idToken = await auth.currentUser?.getIdToken(/* forceRefresh */ true);
+      if (!idToken) {
+        setResult({ error: "Not authenticated. Please refresh the page and try again." });
+        setSending(false);
+        return;
+      }
       const apiSegment =
         segment === "all" ? "all" : { eventId: selectedEventId };
 
