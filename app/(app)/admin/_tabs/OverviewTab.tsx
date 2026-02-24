@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { MemberProfile, Resource, CaseStudy, StoredEvent } from "@/lib/types";
+import { normalizeMajors } from "@/lib/utils/majorNormalizer";
 import {
   Loader2,
   Users,
@@ -303,7 +304,6 @@ export default function OverviewTab() {
         const yearBreakdown: Record<string, number> = {};
         const collegeBreakdown: Record<string, number> = {};
         const techLevelBreakdown: Record<string, number> = {};
-        const majorBreakdown: Record<string, number> = {};
         const interestsBreakdown: Record<string, number> = {};
         const referralSourceBreakdown: Record<string, number> = {};
 
@@ -311,12 +311,14 @@ export default function OverviewTab() {
           if (m.year) yearBreakdown[m.year] = (yearBreakdown[m.year] ?? 0) + 1;
           if (m.college) collegeBreakdown[m.college] = (collegeBreakdown[m.college] ?? 0) + 1;
           if (m.techLevel) techLevelBreakdown[m.techLevel] = (techLevelBreakdown[m.techLevel] ?? 0) + 1;
-          if (m.major) majorBreakdown[m.major] = (majorBreakdown[m.major] ?? 0) + 1;
           if (m.referralSource) referralSourceBreakdown[m.referralSource] = (referralSourceBreakdown[m.referralSource] ?? 0) + 1;
           (m.interests ?? []).forEach((interest) => {
             interestsBreakdown[interest] = (interestsBreakdown[interest] ?? 0) + 1;
           });
         });
+
+        // Normalize majors (handles "CS" vs "Computer Science" vs "Comp Sci", etc.)
+        const normalizedMajorBreakdown = normalizeMajors(members.map((m) => m.major));
 
         // ── Events ────────────────────────────────────────────────────────
         const events = eventsSnap.docs.map((d) => d.data() as StoredEvent);
@@ -457,7 +459,7 @@ export default function OverviewTab() {
           yearBreakdown,
           collegeBreakdown,
           techLevelBreakdown,
-          majorBreakdown,
+          majorBreakdown: normalizedMajorBreakdown,
           interestsBreakdown,
           referralSourceBreakdown,
         });

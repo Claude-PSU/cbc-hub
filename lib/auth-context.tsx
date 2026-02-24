@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
 
 interface AuthContextValue {
   user: User | null;
@@ -19,8 +20,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
+
+      // Update last active timestamp when user logs in
+      if (u) {
+        try {
+          await updateDoc(doc(db, "members", u.uid), {
+            lastActive: new Date().toISOString(),
+          });
+        } catch (err) {
+          // If member document doesn't exist, silently fail
+          // (they may be a new user not yet in the members collection)
+          console.debug("Could not update lastActive:", err);
+        }
+      }
+
       setLoading(false);
     });
     return unsubscribe;

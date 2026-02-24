@@ -129,6 +129,7 @@ function AuthForm() {
           uid: cred.user.uid,
           email: cred.user.email,
           emailPasswordAccountVerified: false,
+          roles: ["General Member"],
           ...(utm ? { utmSource: utm } : {}),
         }, { merge: true });
         // Send new registrations to /verify-email before profile setup
@@ -179,6 +180,7 @@ function AuthForm() {
         await setDoc(doc(db, "members", cred.user.uid), {
           uid: cred.user.uid,
           email: cred.user.email,
+          roles: ["General Member"],
           ...(utm ? { utmSource: utm } : {}),
         }, { merge: true });
         router.push(next && next.startsWith("/") ? `/settings?next=${encodeURIComponent(next)}` : "/settings");

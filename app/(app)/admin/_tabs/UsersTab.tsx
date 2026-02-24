@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import type { MemberProfile, MemberRole } from "@/lib/types";
@@ -20,6 +20,9 @@ export default function UsersTab({ currentUserUid }: { currentUserUid: string })
   const [deleting, setDeleting] = useState<string | null>(null);
   const [updatingRoles, setUpdatingRoles] = useState<string | null>(null);
   const [openRolePicker, setOpenRolePicker] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showLeftShadow, setShowLeftShadow] = useState(false);
+  const [showRightShadow, setShowRightShadow] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -36,6 +39,23 @@ export default function UsersTab({ currentUserUid }: { currentUserUid: string })
       }
     })();
   }, []);
+
+  // Scroll shadow visibility
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => {
+      setShowLeftShadow(el.scrollLeft > 0);
+      setShowRightShadow(el.scrollLeft < el.scrollWidth - el.clientWidth - 1);
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [members.length]);
 
   // Close role picker on outside click
   useEffect(() => {
@@ -153,30 +173,33 @@ export default function UsersTab({ currentUserUid }: { currentUserUid: string })
             {searchQuery ? "No members match your search." : "No members yet."}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" ref={scrollRef}>
             <table className="w-full text-sm">
-              <thead className="bg-[#faf9f5] border-b border-[#e8e6dc]">
+              <thead className="bg-[#faf9f5] border-b border-[#e8e6dc] whitespace-nowrap">
                 <tr>
-                  <th className="px-6 py-3 text-left font-semibold text-[#555555]">Name</th>
+                  <th className={`px-6 py-3 text-left font-semibold text-[#555555] sticky left-0 z-20 bg-[#faf9f5] transition-[filter] duration-200 ${showLeftShadow ? "[filter:drop-shadow(3px_0_6px_rgba(0,0,0,0.08))]" : ""}`}>Name</th>
                   <th className="px-6 py-3 text-left font-semibold text-[#555555]">Email</th>
                   <th className="px-6 py-3 text-left font-semibold text-[#555555]">Year</th>
                   <th className="px-6 py-3 text-left font-semibold text-[#555555]">College</th>
                   <th className="px-6 py-3 text-left font-semibold text-[#555555]">Tech Level</th>
                   <th className="px-6 py-3 text-left font-semibold text-[#555555]">Joined</th>
+                  <th className="px-6 py-3 text-left font-semibold text-[#555555]">Last Active</th>
                   <th className="px-6 py-3 text-left font-semibold text-[#555555]">Role</th>
-                  <th className="px-6 py-3 text-right font-semibold text-[#555555]">Actions</th>
+                  <th className={`px-6 py-3 text-right font-semibold text-[#555555] sticky right-0 z-20 bg-[#faf9f5] transition-[filter] duration-200 ${showRightShadow ? "[filter:drop-shadow(-3px_0_6px_rgba(0,0,0,0.08))]" : ""}`}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#e8e6dc]">
+              <tbody className="divide-y divide-[#e8e6dc] whitespace-nowrap">
                 {filteredMembers.map((member) => {
                   const isIncomplete = !member.displayName || !member.major || !member.year || !member.college || !member.techLevel;
                   return (
-                  <tr key={member.id} className={`hover:bg-[#faf9f5] transition-colors ${isIncomplete ? "bg-orange-50/50" : ""}`}>
-                    <td className="px-6 py-4 text-[#141413] font-medium flex items-center gap-2">
-                      {member.displayName || <span className="text-[#b0aea5] text-sm italic">No name set</span>}
-                      {isIncomplete && (
-                        <AlertCircle size={14} className="text-orange-500 shrink-0" aria-label="Profile incomplete" />
-                      )}
+                  <tr key={member.id} className={`group hover:bg-[#faf9f5] transition-colors ${isIncomplete ? "bg-orange-50" : ""}`}>
+                    <td className={`px-6 py-4 text-[#141413] font-medium sticky left-0 z-10 transition-[filter,background-color] duration-200 w-48 max-w-48 ${showLeftShadow ? "[filter:drop-shadow(3px_0_6px_rgba(0,0,0,0.08))]" : ""} ${isIncomplete ? "bg-orange-50 group-hover:bg-orange-50" : "bg-white group-hover:bg-[#faf9f5]"}`}>
+                      <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin">
+                        {member.displayName || <span className="text-[#b0aea5] text-sm italic">No name set</span>}
+                        {isIncomplete && (
+                          <AlertCircle size={14} className="text-orange-500 shrink-0" aria-label="Profile incomplete" />
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-[#b0aea5] text-xs">{member.email}</td>
                     <td className="px-6 py-4 text-[#b0aea5] text-sm">{member.year || "—"}</td>
@@ -187,6 +210,17 @@ export default function UsersTab({ currentUserUid }: { currentUserUid: string })
                         ? new Date(member.createdAt).toLocaleDateString()
                         : "—"}
                     </td>
+                    <td className="px-6 py-4 text-[#b0aea5] text-sm">
+                      {member.lastActive
+                        ? new Date(member.lastActive).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "Never"}
+                    </td>
 
                     {/* Role column */}
                     <td className="px-6 py-4">
@@ -195,7 +229,7 @@ export default function UsersTab({ currentUserUid }: { currentUserUid: string })
                           {member.roles.map((role) => (
                             <span
                               key={role}
-                              className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded ${ROLE_STYLES[role]}`}
+                              className={`rounded-full px-1.5 py-0.5 text-xs font-medium rounded ${ROLE_STYLES[role]}`}
                             >
                               {role}
                             </span>
@@ -207,7 +241,7 @@ export default function UsersTab({ currentUserUid }: { currentUserUid: string })
                     </td>
 
                     {/* Actions column */}
-                    <td className="px-6 py-4 text-right">
+                    <td className={`px-6 py-4 text-right sticky right-0 transition-[filter,background-color] duration-200 ${openRolePicker === member.id ? "z-30" : "z-10"} ${showRightShadow ? "[filter:drop-shadow(-3px_0_6px_rgba(0,0,0,0.08))]" : ""} ${isIncomplete ? "bg-orange-50 group-hover:bg-orange-50" : "bg-white group-hover:bg-[#faf9f5]"}`}>
                       <div className="flex items-center justify-end gap-2">
                         {/* Role picker dropdown */}
                         <div className="relative" data-role-picker={member.id}>

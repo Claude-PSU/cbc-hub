@@ -212,6 +212,15 @@ function CaseStudyForm({
                 className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
               />
             </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-[#141413] mb-1.5">Student Count</label>
+              <input
+                type="number"
+                value={formData.studentCount || ""}
+                onChange={(e) => setFormData({ ...formData, studentCount: parseInt(e.target.value) || undefined })}
+                className="w-full px-3 py-2 border border-[#e8e6dc] rounded-lg text-sm focus:outline-none focus:border-[#d97757]"
+              />
+            </div>
           </>
         )}
 

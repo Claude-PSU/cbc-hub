@@ -44,6 +44,7 @@ export interface MemberProfile {
   newsletter: boolean;
   updatedAt: string;
   createdAt?: string;
+  lastActive?: string; // ISO timestamp of last login
   isAdmin?: boolean;
   roles?: MemberRole[];
   referralSource?: string;

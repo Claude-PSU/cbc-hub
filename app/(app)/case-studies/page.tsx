@@ -177,7 +177,7 @@ function ClubCard({ study }: { study: CaseStudy }) {
       </h3>
 
       {/* Description */}
-      <p className="text-sm text-[#6b6860] leading-relaxed line-clamp-3 mb-4 flex-1">
+      <p className="text-sm text-[#6b6860] leading-relaxed mb-4 flex-1">
         {study.description}
       </p>
 
