@@ -63,7 +63,18 @@ export async function GET(request: NextRequest) {
     const isAbsolute = redirectUrl.startsWith("https://") || redirectUrl.startsWith("http://");
     const safeRedirect = (isRelative || isAbsolute) ? redirectUrl : "/dashboard";
 
-    return NextResponse.redirect(safeRedirect);
+    // Redirect to the form page, passing the real destination via a short-lived HttpOnly cookie.
+    // This keeps the true URL server-side only — it never appears in the browser address bar.
+    const formPageUrl = new URL(`/checkin/${eventId}/form`, request.url);
+    const response = NextResponse.redirect(formPageUrl);
+    response.cookies.set("checkin_dest", safeRedirect, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 30, // 30-second window to load the form page
+      path: `/checkin/${eventId}/form`,
+    });
+    return response;
   } catch (error) {
     console.error("Redirect error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
