@@ -13,7 +13,10 @@ function getAdminApp() {
       "Download your service account JSON from Firebase Console → Project Settings → Service Accounts."
     );
   }
-  return initializeApp({ credential: cert(JSON.parse(key)) });
+  // Support both raw JSON and base64-encoded JSON (recommended for Vercel, where
+  // pasting raw JSON can corrupt the \\n escape sequences in the private key).
+  const json = key.startsWith("{") ? key : Buffer.from(key, "base64").toString("utf8");
+  return initializeApp({ credential: cert(JSON.parse(json)) });
 }
 
 export function getAdminAuth() {
