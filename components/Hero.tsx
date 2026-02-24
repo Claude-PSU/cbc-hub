@@ -1,5 +1,4 @@
 import ClubLogo from "./ClubLogo";
-import PromptBox from "./PromptBox";
 import AuthCTA from "./AuthCTA";
 
 export default function Hero() {

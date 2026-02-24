@@ -1,0 +1,131 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/members/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // True if the caller has a member profile doc (i.e. has completed onboarding)
+    function isMember() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/members/$(request.auth.uid));
+    }
+
+    // ─── Members ──────────────────────────────────────────────────────────────
+    match /members/{userId} {
+      // Any authenticated user can read their own profile; admins can read any profile
+      allow read: if request.auth != null &&
+        (request.auth.uid == userId || isAdmin());
+
+      // Users can create only their own profile, and cannot set isAdmin on creation
+      allow create: if request.auth != null &&
+        request.auth.uid == userId &&
+        !('isAdmin' in request.resource.data);
+
+      // Users can update their own profile but cannot change the isAdmin field
+      allow update: if request.auth != null &&
+        request.auth.uid == userId &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAdmin']);
+
+      // Admins can create, update, or delete any member profile (includes isAdmin changes)
+      allow write: if isAdmin();
+    }
+
+    // ─── RSVPs ────────────────────────────────────────────────────────────────
+    match /rsvps/{eventId}/attendees/{userId} {
+      // Authenticated users and admins can read attendee lists
+      allow read: if request.auth != null;
+
+      // Users can only create or delete their own RSVP
+      allow create, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ─── Resources ────────────────────────────────────────────────────────────
+    match /resources/{resourceId} {
+      // Authenticated users see only published resources; admins see all
+      allow read: if request.auth != null &&
+        (resource.data.published == true || isAdmin());
+
+      // Only admins can create, update, or delete resources
+      allow write: if isAdmin();
+    }
+
+    // ─── Case Studies ─────────────────────────────────────────────────────────
+    match /case-studies/{caseStudyId} {
+      // Anyone (even unauthenticated) can read published case studies
+      // (case-studies page is public-facing); admins can read all
+      allow read: if resource.data.published == true || isAdmin();
+
+      // Only admins can create, update, or delete case studies
+      allow write: if isAdmin();
+    }
+
+    // ─── Projects ─────────────────────────────────────────────────────────────
+    match /projects/{projectId} {
+      // Authenticated users can read approved projects or their own submissions
+      allow read: if request.auth != null &&
+        (resource.data.status == "approved" ||
+         resource.data.ownerId == request.auth.uid ||
+         isAdmin());
+
+      // Club members can submit their own projects; must start as pending, not featured
+      allow create: if isMember() &&
+        request.resource.data.ownerId == request.auth.uid &&
+        request.resource.data.status == "pending" &&
+        request.resource.data.featured == false;
+
+      // Owners can resubmit after changes are requested (status: changes_requested → pending)
+      // They cannot touch status, featured, ownerId, or approvedAt — only content fields
+      allow update: if request.auth != null &&
+        resource.data.ownerId == request.auth.uid &&
+        resource.data.status == "changes_requested" &&
+        request.resource.data.status == "pending" &&
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(["featured", "ownerId", "ownerEmail", "approvedAt", "submittedAt"]);
+
+      // Admins can update or delete any project (approve, reject, feature, etc.)
+      allow update, delete: if isAdmin();
+    }
+
+    // ─── Events ───────────────────────────────────────────────────────────────
+    match /events/{eventId} {
+      // Any authenticated user can read synced events
+      allow read: if request.auth != null;
+
+      // Only admins can write (sync from Google Calendar via server-side route)
+      allow write: if isAdmin();
+    }
+
+    // ─── Attendance (QR check-ins) ────────────────────────────────────────────
+    match /attendance/{eventId}/checkins/{uid} {
+      // Members can read and create their own check-in (idempotent overwrite is fine)
+      allow read, create, update: if request.auth != null && request.auth.uid == uid && isMember();
+
+      // Admins can read and write all check-ins
+      allow read, write: if isAdmin();
+    }
+
+    // ─── Member Attendance Sub-collection (denormalized for user's own view) ──
+    match /members/{userId}/attendance/{eventId} {
+      // Users can read and create their own attendance records
+      allow read, create, update: if request.auth != null && request.auth.uid == userId && isMember();
+
+      // Admins can read all
+      allow read, write: if isAdmin();
+    }
+    
+    match /emailTemplates/{id} {
+      allow read, write: if request.auth != null
+        && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.isAdmin == true;
+    }
+    match /emailLogs/{id} {
+      allow read: if request.auth != null
+        && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.isAdmin == true;
+      allow write: if false;
+    }
+
+  }
+}

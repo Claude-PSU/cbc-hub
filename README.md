@@ -32,7 +32,6 @@ The Claude Builder Club website is a Next.js application that gives Penn State s
 - Browse and submit projects to the community showcase
 - Read case studies from professors who have integrated AI into their syllabi
 - Claim their free Claude Pro subscription (via JotForm)
-- Chat with an AI assistant that knows about the club
 
 Authentication is restricted to `@psu.edu` email addresses. The site is deployed on Vercel and uses Firebase for auth and data persistence.
 
@@ -54,9 +53,12 @@ Three pillars: **Explore** (AI concepts) · **Build** (real projects) · **Conne
 | Language | TypeScript 5 | Strict mode throughout |
 | Styling | Tailwind CSS v4 | Custom design tokens (no component library) |
 | Auth | Firebase Auth 12 | Google OAuth + email/password, restricted to `@psu.edu` |
-| Database | Cloud Firestore | Real-time collections for members, projects, resources, rsvps
+| Database | Cloud Firestore | Real-time collections for members, projects, resources, rsvps |
 | Icons | Lucide React 0.575 | |
 | Fonts | Geist, Geist Mono, Poppins, Lora | Via `next/font/google` |
+| Markdown | marked 17 | README rendering on project detail pages |
+| Email | Nodemailer 8 | Bulk email campaigns via Gmail SMTP |
+| QR Codes | qrcode.react 4 | Event check-in QR code generation |
 | Deployment | Vercel | Automatic builds on git push |
 | Calendar | Google Calendar API v3 | Server-side proxy; 5-minute Next.js revalidation cache |
 | GitHub | GitHub REST API | 12-hour server-side in-memory cache |
@@ -69,19 +71,31 @@ Three pillars: **Explore** (AI concepts) · **Build** (real projects) · **Conne
 
 The marketing homepage for prospective members and visitors. Contains:
 
-- **Hero** — Full-width dark band with the club name, tagline, and a live streaming chat prompt box powered by `claude-sonnet-4-6`. The assistant answers questions about the club using a curated system prompt.
+- **Hero** — Full-width dark band with the club name and tagline.
 - **Mission Section** — Three-pillar layout (Explore / Build / Connect) with the club's mission statement.
 - **Features Section** — Card grid highlighting what the club offers (workshops, resources, projects, faculty partnerships).
 - **Stats Section** — Community growth numbers.
 - **Newsletter Section** — Beehiiv embed for the monthly AI newsletter.
+
+### About (`/about`)
+
+Static page with club information, history, and leadership.
+
+### Contact (`/contact`)
+
+Public contact form for partnership inquiries and general questions. Submissions are handled by `/api/contact`.
 
 ### Authentication (`/auth`)
 
 Split-panel sign-in/sign-up page:
 
 - **Google OAuth** — Restricted to `@psu.edu` domain via `hd: "psu.edu"` custom parameter.
-- **Email/Password** — Sign-up enforces `@psu.edu` suffix validation client-side; sign-in is unrestricted (for users who registered before the domain check was added).
+- **Email/Password** — Sign-up enforces `@psu.edu` suffix validation client-side; sign-in is unrestricted (for users who registered before the domain check was added). New accounts go through an email verification code flow via `/verify-email`.
 - **Smart redirect** — After auth, checks Firestore for an existing member profile. Redirects new users to `/settings` (profile setup) and returning users to `/dashboard`.
+
+### Email Verification (`/verify-email`)
+
+Step reached after email/password sign-up. A 6-digit verification code is emailed via Nodemailer; the user enters the code to confirm their address before being redirected to profile setup.
 
 ### Member Dashboard (`/dashboard`)
 
@@ -110,6 +124,14 @@ Public-facing event browser (RSVP requires auth):
 - **RSVP system** — Optimistic UI: state updates immediately, then persists to `rsvps/{eventId}/attendees/{userId}` in Firestore. Failure reverts to server state.
 - Bottom CTA with GroupMe and Instagram links.
 
+### Event Check-In (`/checkin/[eventId]`)
+
+QR code-based attendance tracking for in-person events:
+
+- Accessible to authenticated members.
+- Displays a scannable QR code that marks attendance in Firestore.
+- Used by event organizers to log meeting attendance quickly.
+
 ### Resources (`/resources`)
 
 Member-only curated resource hub:
@@ -135,7 +157,7 @@ Community-driven showcase of member AI projects:
 
 Full project page:
 
-- Full README rendered via `react-markdown`.
+- Full README rendered via `marked`.
 - Collaborators list.
 - Associated course link (if any).
 - **View on GitHub** CTA.
@@ -150,19 +172,27 @@ Showcases of professors who have integrated AI projects into their syllabi in co
 
 Case studies are stored in Firestore and managed via the admin dashboard.
 
+### Member Directory (`/members`)
+
+Browsable directory of all club members with public profiles. Only shows members who have opted in to a public profile.
+
+### Member Profile (`/members/[uid]`)
+
+Public profile page for an individual member. Displays name, major, year, tech level, interests, and their approved project submissions.
+
 ### Profile & Settings (`/settings`)
 
 Member profile setup and management:
 
 - **Required fields** — Display name, major, year, college, tech level (Beginner / Some / Intermediate / Advanced).
-- **Optional** — Interests (multi-select), referral source.
-- **Notification preferences** — Email reminders, newsletter opt-in.
+- **Optional** — Interests (multi-select), referral source, GitHub username, LinkedIn URL.
+- **Notification preferences** — Email reminders, newsletter opt-in, public profile toggle.
 - Profile is stored in `members/{uid}` in Firestore.
 - Completing a profile is required before accessing `/dashboard` (new users are redirected here from `/auth`).
 
 ### Admin Dashboard (`/admin`)
 
-Restricted to users with `isAdmin: true` in their Firestore member document. Six tabs:
+Restricted to users with `isAdmin: true` in their Firestore member document. Seven tabs:
 
 | Tab | Purpose |
 |---|---|
@@ -172,15 +202,7 @@ Restricted to users with `isAdmin: true` in their Firestore member document. Six
 | Users | View all members, promote to admin, search and filter, delete accounts |
 | Events | Sync events from Google Calendar into Firestore; view all synced events |
 | Projects | Moderation queue — approve, reject, or request changes on pending project submissions; toggle `featured` flag |
-
-### AI Chat Assistant
-
-Available in the hero on the public landing page. Implemented as a streaming SSE endpoint at `/api/chat`:
-
-- Uses `claude-sonnet-4-6` with a 512-token cap.
-- Hardcoded system prompt with club facts, mission, membership info, and response guidelines.
-- Streams token-by-token via `ReadableStream` + `text/event-stream`.
-- Context window capped at the last 10 messages.
+| Email | Compose and send bulk emails to segmented member lists; supports template variables (`{{name}}`, `{{major}}`, etc.); preview recipient count before sending |
 
 ---
 
@@ -192,14 +214,20 @@ web/
 │   ├── (app)/                          # Authenticated + public app routes
 │   │   ├── layout.tsx                  # Root layout: Navbar, Footer, AuthProvider
 │   │   ├── page.tsx                    # Public landing page
+│   │   ├── about/page.tsx              # Club about page
+│   │   ├── contact/page.tsx            # Contact / partnership form
 │   │   ├── dashboard/page.tsx          # Member dashboard
 │   │   ├── events/page.tsx             # Events browser + RSVP
+│   │   ├── checkin/[eventId]/page.tsx  # QR code event check-in
 │   │   ├── resources/page.tsx          # Resource hub
+│   │   ├── members/
+│   │   │   ├── page.tsx                # Member directory
+│   │   │   └── [uid]/page.tsx          # Public member profile
 │   │   ├── projects/
 │   │   │   ├── page.tsx                # Projects gallery
 │   │   │   └── [id]/page.tsx           # Project detail
 │   │   ├── case-studies/page.tsx       # Case studies showcase
-│   │   ├── profile/page.tsx            # Public profile view
+│   │   ├── profile/page.tsx            # Redirect shim → /members/[uid]
 │   │   ├── settings/page.tsx           # Member profile setup
 │   │   ├── admin/
 │   │   │   ├── page.tsx                # Admin shell + tab router
@@ -209,18 +237,27 @@ web/
 │   │   │       ├── CaseStudiesTab.tsx
 │   │   │       ├── UsersTab.tsx
 │   │   │       ├── EventsTab.tsx
-│   │   │       └── ProjectsTab.tsx
+│   │   │       ├── ProjectsTab.tsx
+│   │   │       └── EmailTab.tsx
 │   │   └── api/
-│   │       ├── chat/route.ts           # Streaming AI chat (SSE)
+│   │       ├── contact/route.ts        # Contact form submission
 │   │       ├── events/route.ts         # Google Calendar proxy (5-min cache)
 │   │       ├── github-repos/
 │   │       │   ├── route.ts            # GitHub org repos (12-hour cache)
 │   │       │   └── validate/route.ts   # Validate a GitHub repo URL
+│   │       ├── auth/
+│   │       │   ├── register/route.ts       # Email/password registration
+│   │       │   ├── send-verification/route.ts  # Send email verification code
+│   │       │   └── verify-code/route.ts    # Verify submitted code
 │   │       └── admin/
 │   │           ├── delete-user/route.ts
-│   │           └── sync-events/route.ts
+│   │           ├── sync-events/route.ts
+│   │           ├── send-bulk-email/route.ts
+│   │           └── email-recipient-count/route.ts
 │   ├── (auth)/
-│   │   └── auth/page.tsx               # Sign in / sign up
+│   │   ├── auth/page.tsx               # Sign in / sign up
+│   │   └── verify-email/page.tsx       # Email verification code entry
+│   ├── layout.tsx                      # Root HTML shell, fonts, metadata
 │   └── globals.css
 ├── components/
 │   ├── AuthCTA.tsx                     # Sign-in / dashboard CTA button
@@ -240,10 +277,14 @@ web/
 │   ├── firebase.ts                     # Firebase client SDK init
 │   ├── firebase-admin.ts               # Firebase Admin SDK (server-side only)
 │   ├── server-cache.ts                 # In-memory TTL cache for API routes
-│   └── types.ts                        # Shared TypeScript interfaces
+│   └── types.ts                        # Shared TypeScript interfaces + enums
+├── scripts/
+│   ├── seed-resources.mjs              # Populate resources collection
+│   └── seed-case-studies.mjs          # Populate case studies collection
 ├── public/
 │   └── branding/                       # Anthropic + club logo assets
-├── .env.local                          # Local environment variables (not committed)
+├── .env.local.example                  # Environment variable template
+├── firestore.rules                     # Firestore security rules
 ├── next.config.ts
 ├── package.json
 └── tsconfig.json
@@ -253,7 +294,7 @@ web/
 
 ## Environment Variables
 
-Create a `.env.local` file in the `web/` directory:
+Copy `.env.local.example` to `.env.local` in the `web/` directory and fill in your values:
 
 ```env
 # ─── Firebase (Client SDK) ────────────────────────────────────────────────────
@@ -264,11 +305,13 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_PUBLIC_FIREBASE_APP_ID=
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=      # optional; enables Firebase Analytics
 
 # ─── Firebase (Admin SDK) ─────────────────────────────────────────────────────
 # Firebase Console → Project Settings → Service Accounts → Generate new private key
-# Paste the entire JSON as a single-line string (or use a secrets manager)
-FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"..."}
+# Base64-encode the downloaded JSON before pasting here:
+#   cat serviceAccountKey.json | base64
+FIREBASE_SERVICE_ACCOUNT_KEY=
 
 # ─── Google Calendar ──────────────────────────────────────────────────────────
 # Google Cloud Console → APIs → Calendar API → Credentials → API Key
@@ -282,6 +325,12 @@ GOOGLE_CALENDAR_ID=
 # github.com → Settings → Developer settings → Personal access tokens → Fine-grained
 # Requires: public_repo read access
 GITHUB_TOKEN=
+
+# ─── Gmail (for email sending) ────────────────────────────────────────────────
+# Used by the admin bulk email feature and email verification flow
+# Enable 2FA on the Gmail account, then create an App Password
+GMAIL_USER=
+GMAIL_APP_PASSWORD=
 ```
 
 > **Never commit `.env.local`.** It is listed in `.gitignore` by default.
@@ -311,7 +360,7 @@ GITHUB_TOKEN=
    npm install
    ```
 
-3. **Create `.env.local`** — copy the template above and fill in your keys (see [External Service Setup](#external-service-setup) for how to obtain each key).
+3. **Create `.env.local`** — copy `.env.local.example` and fill in your keys (see [External Service Setup](#external-service-setup) for how to obtain each value).
 
 4. **Start the development server**
 
@@ -336,6 +385,17 @@ GITHUB_TOKEN=
 | `npm run start` | Start production server (after build) |
 | `npm run lint` | Run ESLint |
 
+### Seed Scripts
+
+Run these once against a real Firestore project to populate initial data:
+
+```bash
+node scripts/seed-resources.mjs
+node scripts/seed-case-studies.mjs
+```
+
+Both scripts require `FIREBASE_SERVICE_ACCOUNT_KEY` and `NEXT_PUBLIC_FIREBASE_PROJECT_ID` to be set.
+
 ---
 
 ## External Service Setup
@@ -350,7 +410,7 @@ GITHUB_TOKEN=
 
 3. **Enable Firestore**
    - Firestore Database → Create database → Start in **production mode**
-   - Set security rules (see [Firestore Data Model](#firestore-data-model) for the recommended rule structure)
+   - Deploy the included `firestore.rules` file to enforce access controls
 
 4. **Get client credentials**
    - Project Settings → General → scroll to "Your apps" → add a Web app
@@ -358,7 +418,10 @@ GITHUB_TOKEN=
 
 5. **Get Admin SDK credentials**
    - Project Settings → Service Accounts → Generate new private key
-   - A JSON file downloads — paste its entire contents as a single-line string into `FIREBASE_SERVICE_ACCOUNT_KEY`
+   - A JSON file downloads — base64-encode it and paste the result into `FIREBASE_SERVICE_ACCOUNT_KEY`:
+     ```bash
+     cat serviceAccountKey.json | base64
+     ```
 
 ### Google Calendar API
 
@@ -370,18 +433,25 @@ GITHUB_TOKEN=
 3. Create an API key:
    - APIs & Services → Credentials → Create Credentials → API Key
    - Restrict the key to the **Google Calendar API** only
-   - Add your domain(s) to the HTTP referrer restrictions if desired (optional for server-side keys)
 
 4. Get your Calendar ID:
    - Open Google Calendar → Settings → select your club calendar → scroll to "Integrate calendar"
    - Copy the Calendar ID (looks like `abc123@group.calendar.google.com`)
 
-5. Make sure the calendar is **public** (or that the API key has access to it):
+5. Make sure the calendar is **public**:
    - Calendar Settings → Access permissions → "Make available to public"
+
+### Gmail (Bulk Email & Verification)
+
+The email/password verification flow and admin bulk email feature use Nodemailer with Gmail SMTP.
+
+1. Enable 2-Step Verification on the Gmail account you want to send from.
+2. Go to Google Account → Security → App Passwords → create a new App Password for "Mail".
+3. Set `GMAIL_USER` to the Gmail address and `GMAIL_APP_PASSWORD` to the generated 16-character password.
 
 ### GitHub API
 
-The `/api/github-repos` route fetches the 6 most recently-updated public repos from the `Claude-PSU` GitHub organization.
+The `/api/github-repos` route fetches the most recently-updated public repos from the `Claude-PSU` GitHub organization.
 
 **Without a token:** Works at 60 unauthenticated requests/hour per IP. Fine for development; may rate-limit on production under heavy traffic.
 
@@ -414,10 +484,14 @@ Stores the member profile created after sign-up.
 | `interests` | string[] | Multi-select tags |
 | `emailReminders` | boolean | |
 | `newsletter` | boolean | |
+| `profilePublic` | boolean | Controls visibility in member directory |
+| `githubUsername` | string? | Optional |
+| `linkedinUrl` | string? | Optional |
 | `referralSource` | string? | Optional |
 | `isAdmin` | boolean? | Set manually; gates `/admin` access |
 | `createdAt` | string | ISO timestamp |
 | `updatedAt` | string | ISO timestamp |
+| `lastActive` | string | ISO timestamp; updated on login |
 
 ### `projects/{id}`
 
@@ -458,7 +532,7 @@ Curated learning resources managed via the admin dashboard.
 | `href` | string | |
 | `category` | enum | `"getting-started"` \| `"prompt-engineering"` \| `"workshops"` \| `"reference"` \| `"external"` \| `"faculty"` |
 | `audience` | enum | `"student"` \| `"faculty"` \| `"all"` |
-| `techLevels` | string[] | Which tech levels this resource is appropriate for |
+| `techLevels` | string[] | Which tech levels this resource targets |
 | `tags` | string[] | |
 | `featured` | boolean | Surfaces in "Picked for You" on the dashboard |
 | `order` | number | Manual sort order |
@@ -499,7 +573,7 @@ Subcollection tracking per-event RSVPs.
 | `email` | string | |
 | `rsvpedAt` | string | ISO timestamp |
 
-### `events/{id}` (optional — admin-synced)
+### `events/{id}` (admin-synced)
 
 Events synced from Google Calendar into Firestore via the admin Events tab. Used for historical tracking and admin overview stats. The live events page reads directly from the Calendar API, not this collection.
 
@@ -523,7 +597,7 @@ To create indexes manually:
 
 ## Admin Access
 
-Admin status is stored as `isAdmin: true` on a user's Firestore `members` document. There is no Firebase custom claim — the check is done client-side and relies on Firestore security rules to prevent non-admins from writing to restricted collections.
+Admin status is stored as `isAdmin: true` on a user's Firestore `members` document. The check is done client-side and Firestore security rules prevent non-admins from writing to restricted collections.
 
 **To grant admin access:**
 
@@ -541,6 +615,7 @@ Admin status is stored as `isAdmin: true` on a user's Firestore `members` docume
 - Sync Google Calendar events into Firestore
 - Approve, reject, or request changes on project submissions
 - Toggle `featured` flag on approved projects
+- Send bulk emails to segmented member lists with template variable substitution
 
 ---
 
