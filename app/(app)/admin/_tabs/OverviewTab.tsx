@@ -300,14 +300,16 @@ export default function OverviewTab() {
         const emailRemindersOptIn = members.filter((m) => m.emailReminders).length;
         const newsletterOptIn = members.filter((m) => m.newsletter).length;
 
-        // ── Demographics ──────────────────────────────────────────────────
+        // ── Demographics (only from complete profiles) ──────────────────────────────
+        const completeMembers = members.filter(isProfileComplete);
+
         const yearBreakdown: Record<string, number> = {};
         const collegeBreakdown: Record<string, number> = {};
         const techLevelBreakdown: Record<string, number> = {};
         const interestsBreakdown: Record<string, number> = {};
         const referralSourceBreakdown: Record<string, number> = {};
 
-        members.forEach((m) => {
+        completeMembers.forEach((m) => {
           if (m.year) yearBreakdown[m.year] = (yearBreakdown[m.year] ?? 0) + 1;
           if (m.college) collegeBreakdown[m.college] = (collegeBreakdown[m.college] ?? 0) + 1;
           if (m.techLevel) techLevelBreakdown[m.techLevel] = (techLevelBreakdown[m.techLevel] ?? 0) + 1;
@@ -318,7 +320,9 @@ export default function OverviewTab() {
         });
 
         // Normalize majors (handles "CS" vs "Computer Science" vs "Comp Sci", etc.)
-        const normalizedMajorBreakdown = normalizeMajors(members.map((m) => m.major));
+        const normalizedMajorBreakdown = await normalizeMajors(
+          completeMembers.map((m) => m.major)
+        );
 
         // ── Events ────────────────────────────────────────────────────────
         const events = eventsSnap.docs.map((d) => d.data() as StoredEvent);

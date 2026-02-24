@@ -189,11 +189,11 @@ function buildCanonicalMapping(majors: (string | undefined | null)[]): Record<st
 // ─── Main Normalization Function ──────────────────────────────────────────
 /**
  * Normalizes an array of major strings and returns aggregated counts.
- * Pure synchronous function — no async, no Firestore calls.
+ * Async function due to caching layer.
  * @param majors - Array of major strings from members
  * @returns Record mapping canonical major names to their counts
  */
-export function normalizeMajors(majors: (string | undefined | null)[]): Record<string, number> {
+export async function normalizeMajors(majors: (string | undefined | null)[]): Promise<Record<string, number>> {
   // Create a cache key from the sorted unique majors (fingerprint)
   const uniqueSorted = Array.from(
     new Set(majors.filter((m) => m?.trim()).map((m) => m?.toLowerCase()))
@@ -201,9 +201,9 @@ export function normalizeMajors(majors: (string | undefined | null)[]): Record<s
   const cacheKey = `majors:${uniqueSorted.join("|")}`;
 
   // Get or build the canonical mapping (cached for 30 min)
-  const canonicalMapping = majorCache.get(cacheKey, () =>
+  const canonicalMapping = await majorCache.get(cacheKey, () =>
     Promise.resolve(buildCanonicalMapping(majors))
-  ) as unknown as Record<string, string>;
+  );
 
   // Aggregate using the canonical mapping
   const aggregated: Record<string, number> = {};
