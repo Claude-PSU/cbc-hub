@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
@@ -54,9 +54,13 @@ function CheckInForm() {
   const [state, setState] = useState<CheckInState>("loading");
   const [event, setEvent] = useState<StoredEvent | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  // Guard against React StrictMode double-invocation and auth re-fires
+  const hasRun = useRef(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
+      if (hasRun.current) return;
+      hasRun.current = true;
       if (!user) {
         // Redirect to auth, preserving the full check-in URL as the ?next= param
         const next = encodeURIComponent(`/checkin/${eventId}?redirect=${encodeURIComponent(safeRedirect)}`);
@@ -137,7 +141,11 @@ function CheckInForm() {
 
         setState("success");
         // Redirect through validation endpoint which will verify token and redirect to the configured URL
-        setTimeout(() => router.replace(`/api/checkin-redirect?token=${token}&eventId=${eventId}`), 2500);
+        console.log("✓ Check-in successful. Token created:", token.substring(0, 8) + "...");
+        setTimeout(() => {
+          console.log("→ Redirecting to token validation endpoint...");
+          router.replace(`/api/checkin-redirect?token=${token}&eventId=${eventId}`);
+        }, 2500);
       } catch (err) {
         console.error("Check-in error:", err);
         setErrorMsg((err as Error).message ?? "Something went wrong.");
