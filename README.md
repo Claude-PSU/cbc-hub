@@ -90,12 +90,13 @@ Public contact form for partnership inquiries and general questions. Submissions
 Split-panel sign-in/sign-up page:
 
 - **Google OAuth** — Restricted to `@psu.edu` domain via `hd: "psu.edu"` custom parameter.
-- **Email/Password** — Sign-up enforces `@psu.edu` suffix validation client-side; sign-in is unrestricted (for users who registered before the domain check was added). New accounts go through an email verification code flow via `/verify-email`.
+- **Email/Password** — Sign-up enforces `@psu.edu` suffix validation client-side and server-side. Passwords must be 10+ characters and contain at least one uppercase letter, lowercase letter, and special character. A confirm-password field validates client-side before submission. New accounts go through an email verification code flow via `/verify-email`.
 - **Smart redirect** — After auth, checks Firestore for an existing member profile. Redirects new users to `/settings` (profile setup) and returning users to `/dashboard`.
+- **Dev bypass** — Set `ALLOW_ANY_EMAIL=true` and `NEXT_PUBLIC_ALLOW_ANY_EMAIL=true` in `.env.local` to allow non-`@psu.edu` addresses locally. Hard-blocked in production.
 
 ### Email Verification (`/verify-email`)
 
-Step reached after email/password sign-up. A 6-digit verification code is emailed via Nodemailer; the user enters the code to confirm their address before being redirected to profile setup.
+Step reached after email/password sign-up. A 6-digit OTP is emailed via Nodemailer; the user enters the code to confirm their address before being redirected to profile setup. The form auto-submits when the sixth digit is typed or the code is pasted. Expired codes (410) auto-trigger a resend. A 60-second resend cooldown prevents abuse. Unverified users are blocked from the rest of the app by `VerifyEmailGuard` and redirected back here.
 
 ### Member Dashboard (`/dashboard`)
 
@@ -111,6 +112,7 @@ The logged-in home base. Requires a completed member profile (redirects to `/set
 | Upcoming Events | Up to 5 next events with date badge and one-click RSVP toggle |
 | Recommended Resources | Up to 3 resources filtered to the user's tech level |
 | My Project Submissions | Status-tracked list of the user's own project submissions |
+| My Attendance | Chronological list of events the user has checked in to via QR code |
 | Community Spotlight | Full-width card for the featured approved project (or top-starred fallback) |
 
 ### Events (`/events`)
@@ -280,7 +282,8 @@ web/
 │   ├── NewsletterSection.tsx
 │   ├── PageHero.tsx                    # Reusable dark page header band
 │   ├── PromptBox.tsx                   # Streaming chat UI component
-│   └── StatsSection.tsx
+│   ├── StatsSection.tsx
+│   └── VerifyEmailGuard.tsx            # Redirects unverified email/password users to /verify-email
 ├── lib/
 │   ├── auth-context.tsx                # React context: user + loading state
 │   ├── firebase.ts                     # Firebase client SDK init
@@ -340,6 +343,12 @@ GITHUB_TOKEN=
 # Enable 2FA on the Gmail account, then create an App Password
 GMAIL_USER=
 GMAIL_APP_PASSWORD=
+
+# ─── Development overrides ────────────────────────────────────────────────────
+# Allow non-@psu.edu emails in register + send-verification (server + client).
+# Never set in production — server check is hard-blocked when NODE_ENV=production.
+# ALLOW_ANY_EMAIL=true
+# NEXT_PUBLIC_ALLOW_ANY_EMAIL=true
 ```
 
 > **Never commit `.env.local`.** It is listed in `.gitignore` by default.
@@ -404,6 +413,30 @@ node scripts/seed-case-studies.mjs
 ```
 
 Both scripts require `FIREBASE_SERVICE_ACCOUNT_KEY` and `NEXT_PUBLIC_FIREBASE_PROJECT_ID` to be set.
+
+### Test Auth Script
+
+Creates (or reuses) a Firebase Auth user and injects a stub `members/{uid}` document so the app treats the account as a fully onboarded member — useful for testing authenticated flows without going through `/settings` or needing a real `@psu.edu` address:
+
+```bash
+node --env-file=.env.local scripts/test-auth-user.mjs --email you@example.com [options]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--email` | required | Email to register or reuse |
+| `--password` | `testpassword123` | Account password |
+| `--name` | `Test User` | Display name |
+| `--major` | `Computer Science` | |
+| `--year` | `Junior` | |
+| `--college` | `IST` | |
+| `--tech-level` | `intermediate` | |
+| `--admin` | false | Sets `isAdmin: true` on the stub |
+| `--unverified` | false | Sets `emailPasswordAccountVerified: false` and injects a known OTP into Firestore |
+| `--code` | `000000` | The OTP to inject when `--unverified` is set |
+| `--delete` | false | Deletes the user and cleans up Firestore docs instead of creating |
+
+Requires `FIREBASE_SERVICE_ACCOUNT_KEY` in `.env.local`.
 
 ---
 
@@ -497,6 +530,7 @@ Stores the member profile created after sign-up.
 | `githubUsername` | string? | Optional |
 | `linkedinUrl` | string? | Optional |
 | `referralSource` | string? | Optional |
+| `emailPasswordAccountVerified` | boolean | `true` once OTP verified; always `true` for Google OAuth users |
 | `isAdmin` | boolean? | Set manually; gates `/admin` access |
 | `createdAt` | string | ISO timestamp |
 | `updatedAt` | string | ISO timestamp |
@@ -571,6 +605,30 @@ Faculty/club AI integration case studies.
 | `featured` | boolean | |
 | `order` | number | Sort order |
 | `published` | boolean | |
+
+### `emailVerificationCodes/{uid}`
+
+Short-lived OTP records created on registration and resend requests.
+
+| Field | Type | Notes |
+|---|---|---|
+| `codeHash` | string | SHA-256 hash of the 6-digit code |
+| `expiresAt` | Timestamp | 10 minutes from creation |
+| `createdAt` | Timestamp | Used to enforce 60-second resend rate limit |
+
+### `members/{uid}/attendance/{eventId}`
+
+Denormalized attendance records written in parallel with `attendance/{eventId}/checkins/{uid}` so the dashboard can fetch a member's full attendance history in a single collection query without a cross-collection join.
+
+| Field | Type | Notes |
+|---|---|---|
+| `uid` | string | |
+| `displayName` | string | |
+| `email` | string | |
+| `checkedInAt` | string | ISO timestamp |
+| `eventId` | string | |
+| `eventTitle` | string | Denormalized from event doc |
+| `eventStart` | string | ISO timestamp; denormalized for sorting |
 
 ### `rsvps/{eventId}/attendees/{uid}`
 
