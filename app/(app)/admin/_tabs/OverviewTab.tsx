@@ -290,8 +290,11 @@ export default function OverviewTab() {
 
         const adminCount = members.filter((m) => m.isAdmin).length;
         const newThisSemester = members.filter((m) => {
-          const c = m.createdAt ? new Date(m.createdAt) : null;
-          return c && c >= semStart && c <= semEnd;
+          // Members without createdAt were created before the auth stub started
+          // setting it — they signed up this semester so count them as new.
+          if (!m.createdAt) return true;
+          const c = new Date(m.createdAt);
+          return c >= semStart && c <= semEnd;
         }).length;
         const profileCompletionRate =
           totalMembers > 0
@@ -348,6 +351,8 @@ export default function OverviewTab() {
         // rate = sum(checkIns per past event) / sum(members who existed at each past event)
         let attendanceCheckInsSum = 0;
         let attendanceMembersSum = 0;
+        let pastEventsCount = 0;
+        let pastEventsRsvpSum = 0;
         const now = new Date();
 
         await Promise.all(
@@ -378,6 +383,8 @@ export default function OverviewTab() {
               const membersAtTime = members.filter((m) => !m.createdAt || new Date(m.createdAt) <= eventEnd).length;
               attendanceCheckInsSum += checkInSnap.size;
               attendanceMembersSum += membersAtTime;
+              pastEventsCount++;
+              pastEventsRsvpSum += rsvpSnap.size;
             }
 
             eventRsvpBreakdown.push({
@@ -392,8 +399,8 @@ export default function OverviewTab() {
         // Sort events by RSVP count descending
         eventRsvpBreakdown.sort((a, b) => b.count - a.count);
 
-        const totalRsvps = eventRsvpBreakdown.reduce((sum, e) => sum + e.count, 0);
-        const avgRsvpsPerEvent = events.length > 0 ? totalRsvps / events.length : 0;
+        const totalRsvps = pastEventsRsvpSum;
+        const avgRsvpsPerEvent = pastEventsCount > 0 ? pastEventsRsvpSum / pastEventsCount : 0;
 
         // Members with at least 1 RSVP
         const engagedMemberUids = new Set(Object.keys(memberRsvpCounts));
@@ -467,7 +474,7 @@ export default function OverviewTab() {
           attendanceRate,
           totalCheckIns,
           membersCheckedIn,
-          eventsHosted: events.length,
+          eventsHosted: pastEventsCount,
           eventsSynced,
           eventRsvpBreakdown,
           topActiveMembers,
@@ -527,7 +534,7 @@ export default function OverviewTab() {
           <StatCard
             label="Profile Completion"
             value={`${Math.round(stats.profileCompletionRate)}%`}
-            subtext={`${Math.floor((stats.profileCompletionRate / 100) * t)} of ${t} profiles complete`}
+            subtext={`${Math.round((stats.profileCompletionRate / 100) * t)} of ${t} profiles complete`}
             icon={<CheckCircle size={16} />}
             accent="#6a9bcc"
           />
@@ -555,7 +562,7 @@ export default function OverviewTab() {
           <StatCard
             label="Avg RSVPs / Event"
             value={stats.avgRsvpsPerEvent.toFixed(1)}
-            subtext={`${stats.totalRsvps} total RSVPs across ${stats.eventsHosted} events`}
+            subtext={`${stats.totalRsvps} RSVPs across ${stats.eventsHosted} past events`}
             icon={<Calendar size={16} />}
             accent="#6a9bcc"
           />
@@ -581,7 +588,7 @@ export default function OverviewTab() {
             value={`${Math.round(stats.attendanceRate)}%`}
             subtext={
               stats.totalCheckIns > 0
-                ? `${stats.membersCheckedIn} of ${t} members checked in · ${stats.totalCheckIns} total check-ins`
+                ? `${stats.totalCheckIns} check-ins across ${stats.eventsHosted} past events · ${stats.membersCheckedIn} unique members`
                 : "No QR check-ins recorded yet"
             }
             icon={<CheckCircle size={16} />}

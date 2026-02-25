@@ -59,6 +59,7 @@ function validatePassword(pw: string): string | null {
 
 function AuthForm() {
   const [mode, setMode] = useState<Mode>("signin");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -120,6 +121,7 @@ function AuthForm() {
     e.preventDefault();
     setError("");
     if (mode === "signup") {
+      if (!name.trim()) { setError("Please enter your full name."); return; }
       const pwError = validatePassword(password);
       if (pwError) { setError(pwError); return; }
       if (password !== confirmPassword) { setError("Passwords do not match."); return; }
@@ -144,8 +146,10 @@ function AuthForm() {
         await setDoc(doc(db, "members", cred.user.uid), {
           uid: cred.user.uid,
           email: cred.user.email,
+          displayName: name.trim(),
           emailPasswordAccountVerified: false,
           roles: ["General Member"],
+          createdAt: new Date().toISOString(),
           ...(utm ? { utmSource: utm } : {}),
         }, { merge: true });
         // Send new registrations to /verify-email before profile setup
@@ -196,7 +200,9 @@ function AuthForm() {
         await setDoc(doc(db, "members", cred.user.uid), {
           uid: cred.user.uid,
           email: cred.user.email,
+          displayName: cred.user.displayName || "",
           roles: ["General Member"],
+          createdAt: new Date().toISOString(),
           ...(utm ? { utmSource: utm } : {}),
         }, { merge: true });
         router.push(next && next.startsWith("/") ? `/settings?next=${encodeURIComponent(next)}` : "/settings");
@@ -311,6 +317,21 @@ function AuthForm() {
           </div>
 
           <form onSubmit={handleEmailAuth} className="space-y-4">
+            {mode === "signup" && (
+              <div>
+                <label className="block text-sm font-medium text-[#141413] mb-1.5">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your name"
+                  required
+                  className="w-full px-4 py-3 border border-[#e8e6dc] rounded-xl text-sm focus:outline-none focus:border-[#d97757] focus:ring-1 focus:ring-[#d97757]/20 bg-white text-[#141413] placeholder:text-[#b0aea5]"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-[#141413] mb-1.5">
                 Email
@@ -399,6 +420,7 @@ function AuthForm() {
               onClick={() => {
                 setMode(mode === "signin" ? "signup" : "signin");
                 setError("");
+                setName("");
                 setConfirmPassword("");
               }}
               className="text-[#d97757] hover:underline font-medium"

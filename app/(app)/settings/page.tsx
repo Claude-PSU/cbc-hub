@@ -90,6 +90,7 @@ function SettingsForm() {
   const [activeTab, setActiveTab] = useState<Tab>("profile");
   const [form, setForm] = useState<FormState>(defaultForm);
   const [existingCreatedAt, setExistingCreatedAt] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
@@ -103,7 +104,12 @@ function SettingsForm() {
       if (docSnap.exists()) {
         const data = docSnap.data() as Partial<MemberProfile>;
         setExistingCreatedAt(data.createdAt ?? null);
-        setForm((prev) => ({ ...prev, ...data }));
+        setForm((prev) => ({
+          ...prev,
+          ...data,
+          // Autofill name from Firebase Auth (Google) if the stored profile has no name yet
+          displayName: data.displayName || u.displayName || "",
+        }));
       } else if (u.displayName) {
         setForm((prev) => ({ ...prev, displayName: u.displayName ?? "" }));
       }
@@ -115,6 +121,11 @@ function SettingsForm() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (!form.displayName.trim()) {
+      setNameError("Please enter your name.");
+      return;
+    }
+    setNameError(null);
     setSaving(true);
     setSaveError(null);
     const isNewProfile = existingCreatedAt === null;
@@ -228,15 +239,23 @@ function SettingsForm() {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-[#141413] mb-1.5">
-                          Full Name
+                          Full Name <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
                           value={form.displayName}
-                          onChange={(e) => setForm((p) => ({ ...p, displayName: e.target.value }))}
+                          onChange={(e) => {
+                            setForm((p) => ({ ...p, displayName: e.target.value }));
+                            if (e.target.value.trim()) setNameError(null);
+                          }}
                           placeholder="Your name"
-                          className="w-full px-4 py-3 border border-[#e8e6dc] rounded-xl text-sm focus:outline-none focus:border-[#d97757] focus:ring-1 focus:ring-[#d97757]/20 bg-white text-[#141413] placeholder:text-[#b0aea5]"
+                          className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-1 bg-white text-[#141413] placeholder:text-[#b0aea5] ${
+                            nameError
+                              ? "border-red-400 focus:border-red-400 focus:ring-red-200"
+                              : "border-[#e8e6dc] focus:border-[#d97757] focus:ring-[#d97757]/20"
+                          }`}
                         />
+                        {nameError && <p className="text-xs text-red-600 mt-1.5">{nameError}</p>}
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
