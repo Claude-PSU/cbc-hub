@@ -33,9 +33,8 @@ export default function Hero() {
 
         {/* Subheadline — Lora editorial */}
         <p className="body-editorial text-lg sm:text-xl text-[#b0aea5] leading-relaxed max-w-2xl mx-auto mb-12">
-          Claude Builder Club is where Penn State students go from curious to
-          capable. Shipping real projects, connect with others,
-          and graduate with a portfolio that proves it. <b>No CS degree required.</b>
+          Ship real projects and graduate with a portfolio that proves it.{" "}
+          <b>Any major. Zero cost. One click to join.</b>
         </p>
 
         {/* CTAs */}

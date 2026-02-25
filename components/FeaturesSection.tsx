@@ -1,3 +1,6 @@
+"use client";
+
+import { useScrollReveal } from "@/hooks/useScrollReveal";
 import {
   CalendarDays,
   GraduationCap,
@@ -17,23 +20,25 @@ const features: {
   badgeColor: string;
   iconBg: string;
   iconColor: string;
+  primary?: boolean;
 }[] = [
   {
     Icon: CalendarDays,
     title: "Weekly Meetups",
     description:
-      "Skip the boring lecture format. Our sessions are hands-on, low-pressure, and actually worth showing up for. First one's always free.",
+      "Not a lecture. Every session is hands-on, low-pressure, and built around real projects you can walk away with.",
     href: "/events",
-    badge: "Weekly",
-    badgeColor: "bg-[#d97757]/10 text-[#d97757]",
+    badge: "Start Here",
+    badgeColor: "bg-[#d97757] text-white",
     iconBg: "bg-[#d97757]/10",
     iconColor: "text-[#d97757]",
+    primary: true,
   },
   {
     Icon: GraduationCap,
     title: "AI in the Classroom",
     description:
-      "See how Penn State professors are already embedding AI into real syllabi — and get ahead before your own classes do.",
+      "See how Penn State professors are embedding AI into real syllabi. Get ahead before your own classes catch up.",
     href: "/case-studies",
     badge: "Growing",
     badgeColor: "bg-[#788c5d]/10 text-[#788c5d]",
@@ -44,7 +49,7 @@ const features: {
     Icon: Layers,
     title: "Resource Hub",
     description:
-      "Prompt engineering guides, starter code, and workshop decks — organized so you can actually find them when you need them.",
+      "Prompt engineering guides, starter code, and workshop decks. Everything organized so you can find it when you need it.",
     href: "/resources",
     badge: "New",
     badgeColor: "bg-[#6a9bcc]/10 text-[#6a9bcc]",
@@ -55,7 +60,7 @@ const features: {
     Icon: Code2,
     title: "Student Projects",
     description:
-      "Browse what your peers are shipping. Get inspired. Steal ideas (we encourage it). Submit your own when you're ready.",
+      "See what other students are building with Claude and the Anthropic API. Get inspired, fork something interesting, or submit your own.",
     href: "/projects",
     badge: null,
     badgeColor: "",
@@ -66,7 +71,7 @@ const features: {
     Icon: Newspaper,
     title: "Newsletter",
     description:
-      "No fluff. AI news that matters, campus updates, and resources your professor probably hasn't seen yet — delivered weekly.",
+      "Weekly AI news that matters, campus updates, and resources worth bookmarking. No fluff, just signal.",
     href: "/newsletter",
     badge: "Weekly",
     badgeColor: "bg-[#6a9bcc]/10 text-[#6a9bcc]",
@@ -77,7 +82,7 @@ const features: {
     Icon: Building2,
     title: "Partner With Us",
     description:
-      "Professor, student org, or department looking to bring AI into your work? Reach out — we move fast and make it easy.",
+      "Professor, student org, or department looking to bring AI into your work? We make it easy to get started.",
     href: "/contact",
     badge: null,
     badgeColor: "",
@@ -87,8 +92,13 @@ const features: {
 ];
 
 export default function FeaturesSection() {
+  const [ref, visible] = useScrollReveal<HTMLElement>();
+
   return (
-    <section className="py-24 bg-white">
+    <section
+      ref={ref}
+      className={`py-24 bg-white transition-all duration-700 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-16">
@@ -100,7 +110,7 @@ export default function FeaturesSection() {
           </h2>
           <p className="body-editorial text-lg text-[#b0aea5] max-w-2xl mx-auto leading-relaxed">
             Whether you want to build, learn, or just stop feeling behind on
-            AI — we&apos;ve got you covered.
+            AI, we&apos;ve got you covered.
           </p>
         </div>
 
@@ -110,7 +120,11 @@ export default function FeaturesSection() {
             <a
               key={feature.title}
               href={feature.href}
-              className="group block bg-[#faf9f5] hover:bg-white border border-[#e8e6dc] hover:border-[#d97757]/30 hover:shadow-md rounded-2xl p-6 transition-all duration-200"
+              className={`group block rounded-2xl p-6 transition-all duration-200 ${
+                feature.primary
+                  ? "bg-white border-2 border-[#d97757]/30 shadow-sm hover:shadow-md"
+                  : "bg-[#faf9f5] hover:bg-white border border-[#e8e6dc] hover:border-[#d97757]/30 hover:shadow-md"
+              }`}
             >
               <div className="flex items-start justify-between mb-4">
                 <div

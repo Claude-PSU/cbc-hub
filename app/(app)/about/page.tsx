@@ -24,7 +24,7 @@ const pillars = [
     title: "Explore",
     headline: "Start anywhere. Go anywhere.",
     description:
-      "You don't need to know what a transformer is to show up. Our workshops, demos, and sessions are designed around genuine curiosity — not prerequisites. We meet people where they are, whether that's absolute beginner or ready to build something production-worthy.",
+      "You don't need to know what a transformer is to show up. Our workshops, demos, and sessions are designed around genuine curiosity, not prerequisites. We meet people where they are, whether that's absolute beginner or ready to build something production-worthy.",
     accent: "bg-[#d97757]/10 border-[#d97757]/20",
     iconColor: "text-[#d97757]",
     stepColor: "text-[#d97757]",
@@ -36,7 +36,7 @@ const pillars = [
     title: "Build",
     headline: "Real projects. Real portfolio.",
     description:
-      "Ideas are cheap. Shipped things are not. We give you API access, boilerplate code, and people who can help you finish. Whether it's a class project, a startup idea, or just something you think is cool — we're here to get it out the door with you.",
+      "Ideas are cheap. Shipped things are not. We give you Claude API access, boilerplate code, and people who can help you finish. Whether it's a class project, a startup idea, or just something you think is cool, we're here to get it out the door with you.",
     accent: "bg-[#6a9bcc]/10 border-[#6a9bcc]/20",
     iconColor: "text-[#6a9bcc]",
     stepColor: "text-[#6a9bcc]",
@@ -48,7 +48,7 @@ const pillars = [
     title: "Connect",
     headline: "Your people are here.",
     description:
-      "AI is more interesting when you're not figuring it out alone. Find collaborators across every college, get mentorship from people one step ahead, and be part of a community that takes AI seriously — without gatekeeping it. Engineers and English majors, welcome.",
+      "AI is more interesting when you're not figuring it out alone. Find collaborators across every college, get mentorship from people one step ahead, and join a community that takes AI seriously without gatekeeping it. Engineers and English majors, welcome.",
     accent: "bg-[#788c5d]/10 border-[#788c5d]/20",
     iconColor: "text-[#788c5d]",
     stepColor: "text-[#788c5d]",
@@ -61,15 +61,17 @@ const activities = [
     icon: CalendarDays,
     title: "Weekly Meetups",
     description:
-      "Hands-on sessions every week. No lecture format — just demos, live coding, and people actually building things together. Attendance is free and open.",
+      "Hands-on sessions every week. No lecture format, just demos, live coding, and people actually building things together. Free and open to all.",
     iconBg: "bg-[#d97757]/10",
     iconColor: "text-[#d97757]",
+    primary: true,
+    badge: "Start Here",
   },
   {
     icon: GraduationCap,
     title: "Class Integrations",
     description:
-      "We partner directly with Penn State professors to embed real AI projects into course syllabi. Students get academic credit for building with Claude.",
+      "We partner directly with Penn State professors to embed AI projects into course syllabi using Claude and the Anthropic API. Students get academic credit for building real tools.",
     iconBg: "bg-[#788c5d]/10",
     iconColor: "text-[#788c5d]",
   },
@@ -85,7 +87,7 @@ const activities = [
     icon: Newspaper,
     title: "AI Newsletter",
     description:
-      "Monthly newsletter covering AI news, Claude updates, and campus highlights — written for people who want to stay sharp without drowning in content.",
+      "Monthly newsletter covering AI news, Claude updates, and campus highlights. Written for people who want to stay sharp without drowning in content.",
     iconBg: "bg-[#6a9bcc]/10",
     iconColor: "text-[#6a9bcc]",
   },
@@ -101,16 +103,16 @@ const activities = [
     icon: Users,
     title: "Resource Hub",
     description:
-      "Prompt engineering guides, workshop slides, starter code, and API walkthroughs — all organized and accessible to every member.",
+      "Prompt engineering guides, workshop slides, Claude starter code, and API walkthroughs. All organized and accessible to every member.",
     iconBg: "bg-[#d97757]/10",
     iconColor: "text-[#d97757]",
   },
 ];
 
 const stats = [
-  { value: "300+", label: "Members" },
+  { value: "Every college", label: "represented" },
   { value: "Any major", label: "No prerequisites" },
-  { value: "Free", label: "Claude Subscription for members" },
+  { value: "Free", label: "Claude Pro for members" },
   { value: "Official", label: "Anthropic partnership" },
 ];
 
@@ -179,13 +181,13 @@ export default function AboutPage() {
                 <p>
                   We partnered with Anthropic to change that. As one of Anthropic&apos;s
                   official campus clubs, we get direct API access, educational resources,
-                  and support to run a program that actually meets students where they are
-                  — whether that&apos;s an engineering lab or an English seminar.
+                  and support to run a program that actually meets students where they are,
+                  whether that&apos;s an engineering lab or an English seminar.
                 </p>
                 <p>
                   Today the club spans every college at Penn State. Our members have built
-                  research assistants, accessibility tools, educational apps, and more —
-                  most of them with no prior AI experience when they joined.
+                  research assistants, accessibility tools, and educational apps.
+                  Most of them had no prior AI experience when they joined.
                 </p>
               </div>
             </div>
@@ -302,7 +304,7 @@ export default function AboutPage() {
               What we actually do.
             </h2>
             <p className="body-editorial text-lg text-[#b0aea5] max-w-2xl leading-relaxed">
-              Beyond "learn AI," here&apos;s the concrete stuff the club runs every semester.
+              Here&apos;s what the club actually runs every semester.
             </p>
           </div>
 
@@ -310,10 +312,21 @@ export default function AboutPage() {
             {activities.map((a) => (
               <div
                 key={a.title}
-                className="bg-white rounded-2xl border border-[#e8e6dc] p-6 hover:shadow-md hover:border-[#d97757]/30 transition-all"
+                className={`rounded-2xl p-6 transition-all ${
+                  "primary" in a && a.primary
+                    ? "bg-white border-2 border-[#d97757]/30 shadow-sm hover:shadow-md"
+                    : "bg-white border border-[#e8e6dc] hover:shadow-md hover:border-[#d97757]/30"
+                }`}
               >
-                <div className={`w-10 h-10 ${a.iconBg} rounded-xl flex items-center justify-center ${a.iconColor} mb-4`}>
-                  <a.icon size={18} strokeWidth={1.5} />
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`w-10 h-10 ${a.iconBg} rounded-xl flex items-center justify-center ${a.iconColor}`}>
+                    <a.icon size={18} strokeWidth={1.5} />
+                  </div>
+                  {"badge" in a && a.badge && (
+                    <span className="text-xs font-medium px-2.5 py-1 bg-[#d97757] text-white rounded-full">
+                      {a.badge}
+                    </span>
+                  )}
                 </div>
                 <h3 className="heading text-base font-semibold text-[#141413] mb-2">{a.title}</h3>
                 <p className="text-sm text-[#b0aea5] leading-relaxed">{a.description}</p>
@@ -383,13 +396,12 @@ export default function AboutPage() {
       <section className="py-20 bg-[#faf9f5]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <blockquote className="body-editorial text-2xl sm:text-3xl text-[#141413] font-medium leading-relaxed mb-6">
-            &ldquo;The AI wave isn&apos;t coming — it&apos;s here. The students who build
-            with it now will define what it looks like for everyone else. We want those
-            students to be from Penn State.&rdquo;
+            &ldquo;Every student at Penn State should be able to pick up AI and
+            build something meaningful with it, no matter what they study. That&apos;s what we do every week.&rdquo;
           </blockquote>
           <div className="flex items-center justify-center gap-3">
             <div className="w-8 h-px bg-[#e8e6dc]" />
-            <p className="text-sm text-[#b0aea5]">Claude Builder Club at Penn State</p>
+            <p className="text-sm text-[#b0aea5]">Club leadership, Fall 2025</p>
             <div className="w-8 h-px bg-[#e8e6dc]" />
           </div>
         </div>
@@ -409,13 +421,14 @@ export default function AboutPage() {
                   Ready to start building?
                 </h2>
                 <p className="text-[#b0aea5] text-base max-w-md leading-relaxed">
-                  Join Penn State&apos;s AI community. It&apos;s free, it&apos;s open to everyone,
-                  and the next meeting is closer than you think.
+                  Join Penn State&apos;s AI community. Free to join, open to every
+                  major, and takes about five seconds to sign up.
                 </p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 shrink-0">
                 <AuthCTA
+                  joinLabel="Sign Up Free"
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#d97757] hover:bg-[#c86843] text-white text-sm font-semibold rounded-xl transition-colors"
                 />
                 <Link

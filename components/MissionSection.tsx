@@ -1,5 +1,9 @@
+"use client";
+
 import { Compass, Wrench, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useScrollReveal } from "@/hooks/useScrollReveal";
+// import PhotoGallery from "./PhotoGallery";
 
 const pillars: {
   Icon: LucideIcon;
@@ -15,7 +19,7 @@ const pillars: {
     step: "01",
     title: "Explore",
     description:
-      "Curious but don't know where to start? Our workshops, demos, and hands-on sessions meet you exactly where you are — no prior experience needed.",
+      "Curious but don't know where to start? Our workshops and hands-on sessions meet you exactly where you are. No prior experience needed.",
     accent: "bg-[#d97757]/10 border-[#d97757]/20",
     iconColor: "text-[#d97757]",
     stepColor: "text-[#d97757]",
@@ -25,7 +29,7 @@ const pillars: {
     step: "02",
     title: "Build",
     description:
-      "Have an idea you actually want to ship? Use the Claude API to build real things — for a class project, a startup pitch, or just because you can.",
+      "Have an idea you actually want to ship? Use the Claude API to build it. Class projects, startup pitches, personal experiments. If you can describe it, you can build it.",
     accent: "bg-[#6a9bcc]/10 border-[#6a9bcc]/20",
     iconColor: "text-[#6a9bcc]",
     stepColor: "text-[#6a9bcc]",
@@ -35,7 +39,7 @@ const pillars: {
     step: "03",
     title: "Connect",
     description:
-      "Looking for your people? A community of students, faculty, and industry folks who take AI seriously — but don't gatekeep it.",
+      "Looking for your people? Students, faculty, and industry professionals who take AI seriously and want everyone at the table.",
     accent: "bg-[#788c5d]/10 border-[#788c5d]/20",
     iconColor: "text-[#788c5d]",
     stepColor: "text-[#788c5d]",
@@ -43,8 +47,13 @@ const pillars: {
 ];
 
 export default function MissionSection() {
+  const [ref, visible] = useScrollReveal<HTMLElement>();
+
   return (
-    <section className="py-24 bg-[#faf9f5]">
+    <section
+      ref={ref}
+      className={`pt-24 pb-24 bg-[#faf9f5] transition-all duration-700 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-16">
@@ -57,9 +66,10 @@ export default function MissionSection() {
             for people who already get it.
           </h2>
           <p className="body-editorial text-lg text-[#b0aea5] max-w-2xl mx-auto leading-relaxed">
-            We&apos;re building for everyone else. STEM, liberal arts, business,
-            whatever — if you&apos;re at Penn State and curious about AI,
-            you&apos;re exactly who this is for.
+            We&apos;re building for everyone else. Powered through Claude by Anthropic,
+            our workshops welcome STEM, liberal arts, business, and
+            education majors alike. If you&apos;re at Penn State and curious
+            about AI, you&apos;re exactly who this is for.
           </p>
         </div>
 
@@ -94,14 +104,17 @@ export default function MissionSection() {
           ))}
         </div>
 
-        {/* Mission quote */}
+        {/* Photo gallery — uncomment when photos are added to public/photos/ */}
+        {/* <PhotoGallery /> */}
+
+        {/* Member quote */}
         <div className="mt-16 max-w-3xl mx-auto text-center">
           <blockquote className="body-editorial text-lg text-[#b0aea5] italic leading-relaxed">
-            &ldquo;The AI wave isn&apos;t coming — it&apos;s here. The students
-            who build with it now will define what it looks like for everyone
-            else. We want those students to be from Penn State.&rdquo;
+            &ldquo;AI is here to stay, and the students who understand and can build with it today will define what it looks like for everyone else. I want those students to be from Penn State.&rdquo;
           </blockquote>
-          <p className="mt-4 text-sm text-[#b0aea5]">— Claude Builder Club</p>
+          <p className="mt-4 text-sm text-[#b0aea5]">
+            — Matt McCartney, Computer Science &apos;26
+          </p>
         </div>
       </div>
     </section>
