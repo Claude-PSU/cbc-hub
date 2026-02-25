@@ -5,10 +5,12 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, collection, query, where, getDocs, updateDoc, arrayUnion, increment } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { User as UserIcon, Bell } from "lucide-react";
 import type { MemberProfile } from "@/lib/types";
+import { generateReferralCode } from "@/lib/referral-utils";
+import { evaluateAchievements, ACHIEVEMENT_MAP } from "@/lib/achievements";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -119,11 +121,82 @@ function SettingsForm() {
     setSaveError(null);
     const isNewProfile = existingCreatedAt === null;
     try {
+      // Auto-generate referral code if not already set
+      const currentSnap = await getDoc(doc(db, "members", user.uid));
+      const currentData = currentSnap.exists() ? (currentSnap.data() as Partial<MemberProfile>) : {};
+      const referralCode = currentData.referralCode || generateReferralCode(user.uid);
+
       await setDoc(
         doc(db, "members", user.uid),
-        { ...form, email: user.email, uid: user.uid, updatedAt: new Date().toISOString(), createdAt: existingCreatedAt ?? new Date().toISOString() },
+        {
+          ...form,
+          email: user.email,
+          uid: user.uid,
+          updatedAt: new Date().toISOString(),
+          createdAt: existingCreatedAt ?? new Date().toISOString(),
+          referralCode,
+        },
         { merge: true }
       );
+
+      // Check if profile is now complete
+      const profileComplete = !!(form.displayName && form.major && form.year && form.college && form.techLevel);
+
+      // Complete pending referral if this user was referred and profile is now complete
+      if (profileComplete && currentData.referredByUid) {
+        try {
+          const refQuery = query(
+            collection(db, "referrals"),
+            where("referredUid", "==", user.uid),
+            where("status", "==", "pending")
+          );
+          const refSnap = await getDocs(refQuery);
+          for (const refDoc of refSnap.docs) {
+            await updateDoc(doc(db, "referrals", refDoc.id), {
+              status: "completed",
+              completedAt: new Date().toISOString(),
+            });
+          }
+        } catch (err) {
+          console.error("Failed to complete referral:", err);
+        }
+      }
+
+      // Evaluate achievements
+      try {
+        const currentAchievements = currentData.achievements ?? [];
+        const [attendanceSnap, projectsSnap, referralsSnap] = await Promise.all([
+          getDocs(collection(db, "members", user.uid, "attendance")),
+          getDocs(query(collection(db, "projects"), where("ownerId", "==", user.uid))),
+          getDocs(query(collection(db, "referrals"), where("referrerUid", "==", user.uid), where("status", "==", "completed"))),
+        ]);
+        const projectDocs = projectsSnap.docs.map((d) => d.data());
+        const newAchievements = evaluateAchievements({
+          profileComplete,
+          eventsAttended: attendanceSnap.size,
+          projectsSubmitted: projectDocs.length,
+          projectsFeatured: projectDocs.filter((p) => p.featured).length,
+          referralsCompleted: referralsSnap.size,
+          resourcesViewed: currentData.resourceViews ?? 0,
+          currentAchievements,
+        });
+        if (newAchievements.length > 0) {
+          const now = new Date().toISOString();
+          const totalNewPoints = newAchievements.reduce((sum, id) => sum + (ACHIEVEMENT_MAP.get(id)?.points ?? 0), 0);
+          await Promise.all([
+            ...newAchievements.map((id) =>
+              setDoc(doc(db, "members", user.uid, "earnedAchievements", id), { achievementId: id, earnedAt: now })
+            ),
+            setDoc(doc(db, "members", user.uid), {
+              achievements: arrayUnion(...newAchievements),
+              achievementPoints: increment(totalNewPoints),
+            }, { merge: true }),
+          ]);
+        }
+      } catch (err) {
+        console.error("Achievement evaluation error:", err);
+      }
+
       // On first-time profile creation, forward to ?next= (e.g. a pending check-in) or dashboard
       if (isNewProfile) {
         const dest = next && (next.startsWith("/") || next.startsWith("https://") || next.startsWith("http://")) ? next : "/dashboard";

@@ -8,8 +8,9 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, doc, getDocs, getDoc, query, where } from "firebase/firestore";
-import { Github, Linkedin, Loader2, ExternalLink, AlertCircle, Star, Clock } from "lucide-react";
+import { Github, Linkedin, Loader2, ExternalLink, AlertCircle, Star, Clock, Award } from "lucide-react";
 import type { MemberProfile, Project } from "@/lib/types";
+import { ACHIEVEMENT_MAP, CATEGORY_COLORS } from "@/lib/achievements";
 
 const LEVEL_STYLES: Record<string, string> = {
   beginner: "bg-[#788c5d]/10 text-[#788c5d]",
@@ -251,6 +252,42 @@ export default function MemberProfilePage() {
               </div>
             ) : (
               <p className="text-xs text-[#b0aea5] italic">No interests listed</p>
+            )}
+
+            {/* Achievement badges */}
+            {(profile.achievements ?? []).length > 0 && (
+              <div className="mt-8">
+                <p className="text-xs font-semibold text-[#b0aea5] uppercase tracking-wider mb-4">
+                  Achievements
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(profile.achievements ?? []).slice(0, 8).map((id) => {
+                    const def = ACHIEVEMENT_MAP.get(id);
+                    if (!def) return null;
+                    const colors = CATEGORY_COLORS[def.category];
+                    return (
+                      <div
+                        key={id}
+                        className={`group relative w-9 h-9 ${colors.bg} rounded-lg flex items-center justify-center cursor-default`}
+                        title={`${def.name} — ${def.description}`}
+                      >
+                        <Award size={16} className={colors.text} />
+                      </div>
+                    );
+                  })}
+                  {(profile.achievements ?? []).length > 8 && (
+                    <Link
+                      href="/achievements"
+                      className="w-9 h-9 bg-[#e8e6dc] rounded-lg flex items-center justify-center text-[10px] font-bold text-[#b0aea5] hover:bg-[#d97757]/10 hover:text-[#d97757] transition-colors"
+                    >
+                      +{(profile.achievements ?? []).length - 8}
+                    </Link>
+                  )}
+                </div>
+                {profile.achievementPoints != null && profile.achievementPoints > 0 && (
+                  <p className="text-[10px] text-[#b0aea5] mt-2">{profile.achievementPoints} pts earned</p>
+                )}
+              </div>
             )}
           </div>
 

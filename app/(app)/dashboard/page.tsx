@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { doc, getDoc, getDocs, setDoc, deleteDoc, collection, query, where, getCountFromServer, limit } from "firebase/firestore";
+import { doc, getDoc, getDocs, setDoc, deleteDoc, collection, query, where, getCountFromServer, limit, arrayUnion, increment } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import {
   Calendar,
@@ -28,9 +28,16 @@ import {
   TrendingUp,
   Sparkle,
   MessageCircle,
+  Copy,
+  Check,
+  Award,
+  UserPlus,
+  Lock,
 } from "lucide-react";
-import type { MemberProfile, Resource, Project, AttendanceRecord } from "@/lib/types";
+import type { MemberProfile, Resource, Project, AttendanceRecord, Referral, EarnedAchievement } from "@/lib/types";
 import type { CalendarEvent } from "@/app/(app)/api/events/route";
+import { evaluateAchievements, ACHIEVEMENT_MAP, REFERRAL_TIERS, CATEGORY_COLORS } from "@/lib/achievements";
+import { generateReferralCode, getReferralUrl } from "@/lib/referral-utils";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -395,6 +402,14 @@ export default function DashboardPage() {
   const [attendedEvents, setAttendedEvents] = useState<AttendanceRecord[]>([]);
   const [loadingAttendance, setLoadingAttendance] = useState(true);
 
+  // Referral & Achievement state
+  const [referralStats, setReferralStats] = useState<{ total: number; completed: number; pending: number }>({ total: 0, completed: 0, pending: 0 });
+  const [loadingReferrals, setLoadingReferrals] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const [recentAchievements, setRecentAchievements] = useState<{ id: string; earnedAt: string }[]>([]);
+  const [loadingAchievements, setLoadingAchievements] = useState(true);
+  const [newlyEarnedIds, setNewlyEarnedIds] = useState<string[]>([]);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (!u) { router.push("/auth"); return; }
@@ -482,6 +497,75 @@ export default function DashboardPage() {
             .map((d) => ({ id: d.id, ...d.data() } as Project))
             .sort((a, b) => (b.githubMeta?.stars ?? 0) - (a.githubMeta?.stars ?? 0))[0] ?? null;
           setSpotlightProject(topStarred);
+        }
+
+        // ── Referral stats ──
+        try {
+          // Ensure referral code exists
+          if (!profileData.referralCode) {
+            const code = generateReferralCode(u.uid);
+            await setDoc(doc(db, "members", u.uid), { referralCode: code }, { merge: true });
+            profileData.referralCode = code;
+            setProfile({ ...profileData });
+          }
+          const referralSnap = await getDocs(query(collection(db, "referrals"), where("referrerUid", "==", u.uid)));
+          const referrals = referralSnap.docs.map((d) => d.data());
+          setReferralStats({
+            total: referrals.length,
+            completed: referrals.filter((r) => r.status === "completed").length,
+            pending: referrals.filter((r) => r.status === "pending").length,
+          });
+        } catch (err) {
+          console.error("Referral fetch error:", err);
+        } finally {
+          setLoadingReferrals(false);
+        }
+
+        // ── Achievement evaluation ──
+        try {
+          const currentAchievements = profileData.achievements ?? [];
+          const projectDocs = myProjectsSnap.docs.map((d) => d.data());
+          const completedReferralsSnap = await getDocs(query(collection(db, "referrals"), where("referrerUid", "==", u.uid), where("status", "==", "completed")));
+
+          const newIds = evaluateAchievements({
+            profileComplete: !isProfileIncomplete(profileData),
+            eventsAttended: attendanceSnap.docs.length,
+            projectsSubmitted: projectDocs.length,
+            projectsFeatured: projectDocs.filter((p) => p.featured).length,
+            referralsCompleted: completedReferralsSnap.size,
+            resourcesViewed: profileData.resourceViews ?? 0,
+            currentAchievements,
+          });
+
+          if (newIds.length > 0) {
+            const nowISO = new Date().toISOString();
+            const totalNewPoints = newIds.reduce((sum, id) => sum + (ACHIEVEMENT_MAP.get(id)?.points ?? 0), 0);
+            await Promise.all([
+              ...newIds.map((id) =>
+                setDoc(doc(db, "members", u.uid, "earnedAchievements", id), { achievementId: id, earnedAt: nowISO })
+              ),
+              setDoc(doc(db, "members", u.uid), {
+                achievements: arrayUnion(...newIds),
+                achievementPoints: increment(totalNewPoints),
+              }, { merge: true }),
+            ]);
+            setNewlyEarnedIds(newIds);
+            // Update local profile
+            profileData.achievements = [...currentAchievements, ...newIds];
+            profileData.achievementPoints = (profileData.achievementPoints ?? 0) + totalNewPoints;
+            setProfile({ ...profileData });
+          }
+
+          // Load recent earned achievements for display
+          const earnedSnap = await getDocs(collection(db, "members", u.uid, "earnedAchievements"));
+          const earned = earnedSnap.docs
+            .map((d) => ({ id: d.id, earnedAt: d.data().earnedAt as string }))
+            .sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime());
+          setRecentAchievements(earned.slice(0, 3));
+        } catch (err) {
+          console.error("Achievement eval error:", err);
+        } finally {
+          setLoadingAchievements(false);
         }
 
       } catch (err) {
@@ -904,6 +988,164 @@ export default function DashboardPage() {
                 </p>
               </div>
             )}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section F: Referral & Achievements ── */}
+      <section className="pb-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            {/* Referral Widget */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-semibold text-[#b0aea5] uppercase tracking-wider">Your Referrals</p>
+              </div>
+              <div className="bg-white rounded-2xl border border-[#e8e6dc] p-5">
+                {loadingReferrals ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 size={18} className="animate-spin text-[#b0aea5]" />
+                  </div>
+                ) : (
+                  <>
+                    {/* Referral code + copy */}
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-7 h-7 bg-[#6a9bcc]/10 rounded-lg flex items-center justify-center shrink-0">
+                        <UserPlus size={14} className="text-[#6a9bcc]" />
+                      </div>
+                      <p className="text-xs font-semibold text-[#b0aea5] uppercase tracking-wider">Invite Friends</p>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-[#faf9f5] border border-[#e8e6dc] rounded-xl px-3 py-2.5 mb-4">
+                      <code className="flex-1 text-sm text-[#141413] font-mono truncate">
+                        {profile?.referralCode ? getReferralUrl(profile.referralCode) : "Generating..."}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (profile?.referralCode) {
+                            navigator.clipboard.writeText(getReferralUrl(profile.referralCode));
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                          }
+                        }}
+                        className="shrink-0 p-1.5 rounded-lg hover:bg-[#e8e6dc] transition-colors"
+                      >
+                        {copied ? <Check size={14} className="text-[#788c5d]" /> : <Copy size={14} className="text-[#b0aea5]" />}
+                      </button>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-[#141413]">{referralStats.total}</p>
+                        <p className="text-[10px] text-[#b0aea5] uppercase tracking-wider">Total</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-[#788c5d]">{referralStats.completed}</p>
+                        <p className="text-[10px] text-[#b0aea5] uppercase tracking-wider">Joined</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-[#d97757]">{referralStats.pending}</p>
+                        <p className="text-[10px] text-[#b0aea5] uppercase tracking-wider">Pending</p>
+                      </div>
+                    </div>
+
+                    {/* Progress toward next tier */}
+                    {(() => {
+                      const nextTier = REFERRAL_TIERS.find((t) => t.count > referralStats.completed);
+                      const prevTier = [...REFERRAL_TIERS].reverse().find((t) => t.count <= referralStats.completed);
+                      if (!nextTier) return (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[#b08d57]/10 border border-[#b08d57]/20 rounded-xl">
+                          <Award size={14} className="text-[#b08d57]" />
+                          <span className="text-xs font-medium text-[#b08d57]">Legend status achieved!</span>
+                        </div>
+                      );
+                      const prevCount = prevTier?.count ?? 0;
+                      const progress = Math.min(100, ((referralStats.completed - prevCount) / (nextTier.count - prevCount)) * 100);
+                      return (
+                        <div>
+                          <div className="flex items-center justify-between text-xs text-[#b0aea5] mb-1.5">
+                            <span>{referralStats.completed} / {nextTier.count} referrals</span>
+                            <span className="font-medium text-[#6a9bcc]">{nextTier.label}</span>
+                          </div>
+                          <div className="h-1.5 bg-[#e8e6dc] rounded-full overflow-hidden">
+                            <div className="h-full bg-[#6a9bcc] rounded-full transition-all" style={{ width: `${progress}%` }} />
+                          </div>
+                          {nextTier.perk && (
+                            <p className="text-[10px] text-[#b0aea5] mt-1.5">Unlock: {nextTier.perk}</p>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Recent Achievements Widget */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-semibold text-[#b0aea5] uppercase tracking-wider">Achievements</p>
+                <Link href="/achievements" className="text-xs text-[#d97757] hover:underline flex items-center gap-1">
+                  View all <ExternalLink size={11} />
+                </Link>
+              </div>
+              <div className="bg-white rounded-2xl border border-[#e8e6dc] p-5">
+                {loadingAchievements ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 size={18} className="animate-spin text-[#b0aea5]" />
+                  </div>
+                ) : recentAchievements.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-center py-6">
+                    <div className="w-10 h-10 bg-[#e8e6dc] rounded-xl flex items-center justify-center mb-3">
+                      <Award size={18} className="text-[#b0aea5]" />
+                    </div>
+                    <p className="text-sm font-medium text-[#141413] mb-1">No achievements yet</p>
+                    <p className="text-xs text-[#b0aea5]">Complete your profile, attend events, and build projects to earn badges.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Points summary */}
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-7 h-7 bg-[#d97757]/10 rounded-lg flex items-center justify-center shrink-0">
+                        <Award size={14} className="text-[#d97757]" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-[#141413]">{profile?.achievementPoints ?? 0} pts</p>
+                        <p className="text-[10px] text-[#b0aea5]">{(profile?.achievements ?? []).length} badges earned</p>
+                      </div>
+                    </div>
+
+                    {/* Recent badges */}
+                    <div className="border-t border-[#e8e6dc] pt-3 space-y-2.5">
+                      {recentAchievements.map((ea) => {
+                        const def = ACHIEVEMENT_MAP.get(ea.id);
+                        if (!def) return null;
+                        const colors = CATEGORY_COLORS[def.category];
+                        const isNew = newlyEarnedIds.includes(ea.id);
+                        return (
+                          <div key={ea.id} className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-colors ${isNew ? "bg-[#d97757]/5 border border-[#d97757]/20" : "hover:bg-[#faf9f5]"}`}>
+                            <div className={`w-8 h-8 ${colors.bg} rounded-lg flex items-center justify-center shrink-0`}>
+                              <Award size={14} className={colors.text} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-sm font-medium text-[#141413] truncate">{def.name}</p>
+                                {isNew && <span className="text-[9px] font-bold text-[#d97757] bg-[#d97757]/10 px-1.5 py-0.5 rounded-full uppercase">New!</span>}
+                              </div>
+                              <p className="text-[10px] text-[#b0aea5]">{def.description} · {def.points} pts</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
         </div>
       </section>

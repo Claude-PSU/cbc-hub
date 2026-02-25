@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, getDocs, collection, query, where } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, query, where, setDoc, increment } from "firebase/firestore";
 import {
   FolderOpen,
   ExternalLink,
@@ -93,8 +93,14 @@ function TypeBadge({ type }: { type: Resource["type"] }) {
   );
 }
 
-function ResourceCard({ resource }: { resource: Resource }) {
+function ResourceCard({ resource, uid }: { resource: Resource; uid?: string }) {
   const actionLabel = resource.type === "video" ? "Watch →" : "Open →";
+
+  const handleClick = () => {
+    if (uid) {
+      setDoc(doc(db, "members", uid), { resourceViews: increment(1) }, { merge: true }).catch(() => {});
+    }
+  };
 
   return (
     <a
@@ -102,6 +108,7 @@ function ResourceCard({ resource }: { resource: Resource }) {
       href={resource.href}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={handleClick}
       className="group bg-white rounded-2xl border border-[#e8e6dc] p-5 flex flex-col hover:border-[#d97757]/40 hover:shadow-md transition-all"
     >
       <div className="flex items-start justify-between gap-2 mb-3">
@@ -329,7 +336,7 @@ export default function ResourcesPage() {
               sublabel={`Based on your ${techLevelLabel(profile!.techLevel)} skill level`}
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {forYou.map((r) => <ResourceCard key={r.id} resource={r} />)}
+              {forYou.map((r) => <ResourceCard key={r.id} resource={r} uid={user?.uid} />)}
             </div>
           </section>
         )}
@@ -345,7 +352,7 @@ export default function ResourcesPage() {
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {byCategory("getting-started").length > 0
-                ? byCategory("getting-started").map((r) => <ResourceCard key={r.id} resource={r} />)
+                ? byCategory("getting-started").map((r) => <ResourceCard key={r.id} resource={r} uid={user?.uid} />)
                 : <EmptySection label="Getting Started" />}
             </div>
           </section>
@@ -362,7 +369,7 @@ export default function ResourcesPage() {
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {byCategory("prompt-engineering").length > 0
-                ? byCategory("prompt-engineering").map((r) => <ResourceCard key={r.id} resource={r} />)
+                ? byCategory("prompt-engineering").map((r) => <ResourceCard key={r.id} resource={r} uid={user?.uid} />)
                 : <EmptySection label="Prompt Engineering" />}
             </div>
           </section>
@@ -379,7 +386,7 @@ export default function ResourcesPage() {
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {byCategory("workshops").length > 0
-                ? byCategory("workshops").map((r) => <ResourceCard key={r.id} resource={r} />)
+                ? byCategory("workshops").map((r) => <ResourceCard key={r.id} resource={r} uid={user?.uid} />)
                 : <EmptySection label="Workshops" />}
             </div>
           </section>
@@ -397,7 +404,7 @@ export default function ResourcesPage() {
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {facultyResources.length > 0
-                ? facultyResources.map((r) => <ResourceCard key={r.id} resource={r} />)
+                ? facultyResources.map((r) => <ResourceCard key={r.id} resource={r} uid={user?.uid} />)
                 : <EmptySection label="Faculty" />}
             </div>
           </section>
@@ -444,7 +451,7 @@ export default function ResourcesPage() {
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {byCategory("reference").length > 0
-                ? byCategory("reference").map((r) => <ResourceCard key={r.id} resource={r} />)
+                ? byCategory("reference").map((r) => <ResourceCard key={r.id} resource={r} uid={user?.uid} />)
                 : <EmptySection label="Reference" />}
             </div>
           </section>
@@ -461,7 +468,7 @@ export default function ResourcesPage() {
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {byCategory("external").length > 0
-                ? byCategory("external").map((r) => <ResourceCard key={r.id} resource={r} />)
+                ? byCategory("external").map((r) => <ResourceCard key={r.id} resource={r} uid={user?.uid} />)
                 : <EmptySection label="External" />}
             </div>
           </section>

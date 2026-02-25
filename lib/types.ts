@@ -53,6 +53,14 @@ export interface MemberProfile {
   linkedinUrl?: string;
   profilePublic?: boolean;
   emailPasswordAccountVerified?: boolean;
+  // Referral system
+  referralCode?: string;
+  referredBy?: string;
+  referredByUid?: string;
+  // Achievement system
+  achievements?: string[];
+  achievementPoints?: number;
+  resourceViews?: number;
 }
 
 /** Maps {{varName}} in email templates → MemberProfile field.
@@ -151,6 +159,52 @@ export interface Project {
   approvedAt?: string; // ISO
   adminNote?: string;
 }
+
+// ── Referrals ────────────────────────────────────────────────────────────────
+
+export type ReferralStatus = "pending" | "completed" | "invalidated";
+
+export interface Referral {
+  id: string;
+  referrerUid: string;
+  referredUid: string;
+  referredEmail: string;
+  referralCode: string;
+  status: ReferralStatus;
+  createdAt: string;
+  completedAt?: string;
+  invalidatedAt?: string;
+  invalidatedBy?: string;
+}
+
+// ── Achievements ─────────────────────────────────────────────────────────────
+
+export type AchievementCategory = "engagement" | "community" | "creator" | "special";
+
+export interface AchievementDefinition {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: AchievementCategory;
+  points: number;
+  /** If null, this achievement is manually awarded by admins */
+  condition: null | {
+    type: "profile_complete" | "events_attended" | "projects_submitted"
+        | "project_featured" | "referrals_completed" | "resources_viewed";
+    threshold: number;
+  };
+  tier?: "bronze" | "silver" | "gold" | "platinum";
+  secret?: boolean;
+}
+
+export interface EarnedAchievement {
+  achievementId: string;
+  earnedAt: string;
+  awardedBy?: string;
+}
+
+// ── Attendance ───────────────────────────────────────────────────────────────
 
 export interface AttendanceRecord {
   uid: string;

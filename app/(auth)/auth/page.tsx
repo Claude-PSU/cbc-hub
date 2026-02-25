@@ -14,7 +14,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, limit, getDocs } from "firebase/firestore";
 import ClubLogo from "@/components/ClubLogo";
 
 type Mode = "signin" | "signup";
@@ -116,6 +116,36 @@ function AuthForm() {
     return "Something went wrong. Please try again.";
   };
 
+  /** If a ?ref= code is present, link the new signup to the referrer */
+  async function linkReferral(newUid: string, newEmail: string | null) {
+    const refCode = searchParams.get("ref");
+    if (!refCode) return;
+    try {
+      const refQuery = query(collection(db, "members"), where("referralCode", "==", refCode), limit(1));
+      const refSnap = await getDocs(refQuery);
+      if (refSnap.empty) return;
+      const referrerDoc = refSnap.docs[0];
+      // Don't allow self-referral
+      if (referrerDoc.id === newUid) return;
+      await setDoc(doc(db, "members", newUid), {
+        referredBy: refCode,
+        referredByUid: referrerDoc.id,
+      }, { merge: true });
+      const referralRef = doc(collection(db, "referrals"));
+      await setDoc(referralRef, {
+        id: referralRef.id,
+        referrerUid: referrerDoc.id,
+        referredUid: newUid,
+        referredEmail: newEmail ?? "",
+        referralCode: refCode,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error("Failed to link referral:", err);
+    }
+  }
+
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -148,9 +178,13 @@ function AuthForm() {
           roles: ["General Member"],
           ...(utm ? { utmSource: utm } : {}),
         }, { merge: true });
+        // Link referral if ?ref= param present
+        await linkReferral(cred.user.uid, cred.user.email);
         // Send new registrations to /verify-email before profile setup
         const next = searchParams.get("next");
-        router.push(next && next.startsWith("/") ? `/verify-email?next=${encodeURIComponent(next)}` : "/verify-email");
+        const refParam = searchParams.get("ref");
+        const verifyUrl = next && next.startsWith("/") ? `/verify-email?next=${encodeURIComponent(next)}` : "/verify-email";
+        router.push(refParam ? `${verifyUrl}${verifyUrl.includes("?") ? "&" : "?"}ref=${refParam}` : verifyUrl);
       } else {
         const cred = await signInWithEmailAndPassword(auth, email, password);
         // Gate unverified email/password accounts before any other redirect
@@ -199,6 +233,8 @@ function AuthForm() {
           roles: ["General Member"],
           ...(utm ? { utmSource: utm } : {}),
         }, { merge: true });
+        // Link referral if ?ref= param present
+        await linkReferral(cred.user.uid, cred.user.email);
         router.push(next && next.startsWith("/") ? `/settings?next=${encodeURIComponent(next)}` : "/settings");
       } else {
         router.push(next && next.startsWith("/") ? next : "/dashboard");

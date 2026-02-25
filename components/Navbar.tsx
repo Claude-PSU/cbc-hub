@@ -23,6 +23,7 @@ const navLinks: NavLink[] = [
   { href: "/resources", label: "Resources" },
   { href: "/projects", label: "Projects" },
   { href: "/members", label: "Members", authOnly: true },
+  { href: "/achievements", label: "Achievements", authOnly: true },
 ];
 
 function getInitials(displayName: string | null, email: string | null): string {

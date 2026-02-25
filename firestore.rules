@@ -140,5 +140,40 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ─── Referrals ──────────────────────────────────────────────────────────────
+    match /referrals/{referralId} {
+      // Referrer can read their own referrals; admins can read all
+      allow read: if request.auth != null &&
+        (resource.data.referrerUid == request.auth.uid || isAdmin());
+
+      // The referred user creates the referral doc on signup (must be pending, must match own UID)
+      allow create: if request.auth != null &&
+        request.resource.data.referredUid == request.auth.uid &&
+        request.resource.data.status == "pending";
+
+      // The referred user can mark their own pending referral as completed
+      allow update: if request.auth != null &&
+        resource.data.referredUid == request.auth.uid &&
+        resource.data.status == "pending" &&
+        request.resource.data.status == "completed";
+
+      // Admins can update or delete any referral (invalidate, etc.)
+      allow update, delete: if isAdmin();
+    }
+
+    // ─── Earned Achievements ────────────────────────────────────────────────────
+    match /members/{userId}/earnedAchievements/{achievementId} {
+      // Own user, admin, or public profile can read
+      allow read: if request.auth != null &&
+        (request.auth.uid == userId || isAdmin() ||
+         get(/databases/$(database)/documents/members/$(userId)).data.profilePublic == true);
+
+      // Users can create their own achievements (client-side evaluation)
+      allow create: if request.auth != null && request.auth.uid == userId;
+
+      // Admins can award or revoke achievements for anyone
+      allow create, update, delete: if isAdmin();
+    }
+
   }
 }

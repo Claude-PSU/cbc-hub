@@ -8,7 +8,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { MemberProfile } from "@/lib/types";
-import { Loader2, BarChart3, Settings2, Users, Calendar, Zap, Code2, Mail } from "lucide-react";
+import { Loader2, BarChart3, Settings2, Users, Calendar, Zap, Code2, Mail, UserPlus, Award } from "lucide-react";
 import PageHero from "@/components/PageHero";
 import OverviewTab from "./_tabs/OverviewTab";
 import ResourcesTab from "./_tabs/ResourcesTab";
@@ -17,8 +17,10 @@ import UsersTab from "./_tabs/UsersTab";
 import EventsTab from "./_tabs/EventsTab";
 import ProjectsTab from "./_tabs/ProjectsTab";
 import EmailTab from "./_tabs/EmailTab";
+import ReferralsTab from "./_tabs/ReferralsTab";
+import AchievementsTab from "./_tabs/AchievementsTab";
 
-type TabType = "overview" | "resources" | "case-studies" | "users" | "events" | "projects" | "email";
+type TabType = "overview" | "resources" | "case-studies" | "users" | "events" | "projects" | "email" | "referrals" | "achievements";
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode; description: string }[] = [
   { id: "overview", label: "Overview", icon: <BarChart3 size={18} />, description: "Club metrics & growth" },
@@ -28,6 +30,8 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode; description: st
   { id: "events", label: "Events", icon: <Calendar size={18} />, description: "Event tracking" },
   { id: "projects", label: "Projects", icon: <Code2 size={18} />, description: "Review member submissions" },
   { id: "email", label: "Email", icon: <Mail size={18} />, description: "Send bulk emails to members" },
+  { id: "referrals", label: "Referrals", icon: <UserPlus size={18} />, description: "Referral program analytics" },
+  { id: "achievements", label: "Achievements", icon: <Award size={18} />, description: "Award & manage badges" },
 ];
 
 export default function AdminPage() {
@@ -122,6 +126,8 @@ export default function AdminPage() {
         {activeTab === "events" && <EventsTab />}
         {activeTab === "projects" && <ProjectsTab />}
         {activeTab === "email" && <EmailTab />}
+        {activeTab === "referrals" && <ReferralsTab />}
+        {activeTab === "achievements" && <AchievementsTab />}
       </div>
     </div>
   );
