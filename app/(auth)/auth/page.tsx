@@ -74,7 +74,8 @@ function AuthForm() {
     const next = searchParams.get("next");
     const snap = await getDoc(doc(db, "members", uid));
     if (!snap.exists()) {
-      // Preserve the pending check-in (or any ?next=) through the profile setup flow
+      // If the user is heading to check-in, skip profile setup — the API handles it
+      if (next && next.startsWith("/checkin/")) return next;
       return next && next.startsWith("/") ? `/settings?next=${encodeURIComponent(next)}` : "/settings";
     }
     if (next && next.startsWith("/")) return next;
@@ -205,7 +206,12 @@ function AuthForm() {
           createdAt: new Date().toISOString(),
           ...(utm ? { utmSource: utm } : {}),
         }, { merge: true });
-        router.push(next && next.startsWith("/") ? `/settings?next=${encodeURIComponent(next)}` : "/settings");
+        // If heading to check-in, go straight there — the API handles users without full profiles
+        if (next && next.startsWith("/checkin/")) {
+          router.push(next);
+        } else {
+          router.push(next && next.startsWith("/") ? `/settings?next=${encodeURIComponent(next)}` : "/settings");
+        }
       } else {
         router.push(next && next.startsWith("/") ? next : "/dashboard");
       }

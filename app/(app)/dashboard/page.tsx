@@ -42,8 +42,21 @@ function getHourGreeting(): string {
   return "evening";
 }
 
+const PROFILE_FIELDS = [
+  { key: "displayName", label: "Name" },
+  { key: "major", label: "Major" },
+  { key: "year", label: "Year" },
+  { key: "college", label: "College" },
+  { key: "techLevel", label: "Tech Level" },
+] as const;
+
 function isProfileIncomplete(p: MemberProfile): boolean {
-  return !p.displayName || !p.major || !p.year || !p.college || !p.techLevel;
+  return PROFILE_FIELDS.some((f) => !p[f.key]);
+}
+
+function getProfileCompletion(p: MemberProfile): { filled: number; total: number; missing: string[] } {
+  const missing = PROFILE_FIELDS.filter((f) => !p[f.key]).map((f) => f.label);
+  return { filled: PROFILE_FIELDS.length - missing.length, total: PROFILE_FIELDS.length, missing };
 }
 
 function formatEventTime(start: string, isAllDay: boolean): string {
@@ -555,18 +568,45 @@ export default function DashboardPage() {
         <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-[#6a9bcc]/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          {isProfileIncomplete(profile) && (
-            <div className="mb-6 flex items-center gap-3 px-4 py-3 bg-[#d97757]/10 border border-[#d97757]/20 rounded-xl">
-              <AlertCircle size={15} className="text-[#d97757] shrink-0" />
-              <p className="text-sm text-[#d97757]">
-                Your profile is incomplete.{" "}
-                <Link href="/settings" className="underline font-medium hover:text-white transition-colors">
-                  Finish setting it up
-                </Link>{" "}
-                to get personalized event reminders.
-              </p>
-            </div>
-          )}
+          {isProfileIncomplete(profile) && (() => {
+            const { filled, total, missing } = getProfileCompletion(profile);
+            const pct = Math.round((filled / total) * 100);
+            return (
+              <div className="mb-6 bg-[#d97757]/10 border border-[#d97757]/25 rounded-2xl p-5">
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-[#d97757]/20 rounded-xl flex items-center justify-center shrink-0">
+                      <AlertCircle size={18} className="text-[#d97757]" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">Complete Your Profile</p>
+                      <p className="text-xs text-[#b0aea5] mt-0.5">
+                        Fill in your details to get personalized resources and event reminders.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/settings"
+                    className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 bg-[#d97757] hover:bg-[#c86843] text-white text-xs font-semibold rounded-lg transition-colors"
+                  >
+                    Finish Setup <ArrowRight size={12} />
+                  </Link>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#d97757] rounded-full transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="text-[11px] font-semibold text-[#d97757] tabular-nums shrink-0">{pct}%</span>
+                </div>
+                <p className="text-[11px] text-[#b0aea5] mt-2">
+                  Missing: {missing.join(", ")}
+                </p>
+              </div>
+            );
+          })()}
 
           <h1 className="heading text-3xl sm:text-4xl font-bold text-white leading-tight mb-3">
             Good {getHourGreeting()},{" "}
