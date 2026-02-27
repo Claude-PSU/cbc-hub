@@ -5,21 +5,12 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import type { StoredEvent, AttendanceRecord } from "@/lib/types";
+import type { StoredEvent } from "@/lib/types";
 import { CheckCircle, Loader2, AlertCircle, Calendar, MapPin, Clock } from "lucide-react";
 import ClubLogo from "@/components/ClubLogo";
 import Link from "next/link";
-
-function generateToken(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let token = "";
-  for (let i = 0; i < 32; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
-}
 
 type CheckInState =
   | "loading"        // determining auth / fetching event
@@ -84,63 +75,38 @@ function CheckInForm() {
           return;
         }
 
-        // Check if already checked in
-        const existingSnap = await getDoc(doc(db, "attendance", eventId, "checkins", user.uid));
-        if (existingSnap.exists()) {
-          setState("already_in");
-          // Generate token for already-checked-in users too, so they still get the redirect
-          const token = generateToken();
-          await setDoc(doc(db, "checkInTokens", token), {
-            eventId,
-            uid: user.uid,
-            createdAt: Timestamp.now(),
-            used: false,
-          });
-          setTimeout(() => { window.location.replace(`/api/checkin-redirect?token=${token}&eventId=${eventId}`); }, 2500);
-          return;
-        }
-
-        // Ensure the user has completed onboarding — isMember() rule requires a members doc
-        const profile = await getDoc(doc(db, "members", user.uid));
-        if (!profile.exists()) {
-          const next = encodeURIComponent(`/checkin/${eventId}?redirect=${encodeURIComponent(safeRedirect)}`);
-          router.replace(`/settings?next=${next}`);
-          return;
-        }
-
         setState("checking_in");
 
-        const displayName = profile.data().displayName ?? user.displayName ?? "";
-        const email = user.email ?? "";
-        const now = new Date().toISOString();
-
-        const record: AttendanceRecord = {
-          uid: user.uid,
-          displayName,
-          email,
-          checkedInAt: now,
-          eventId,
-          eventTitle: eventData.title,
-          eventStart: eventData.start,
-        };
-
-        // Write to admin-facing collection + user's own subcollection in parallel
-        await Promise.all([
-          setDoc(doc(db, "attendance", eventId, "checkins", user.uid), record),
-          setDoc(doc(db, "members", user.uid, "attendance", eventId), record),
-        ]);
-
-        // Generate single-use token for redirect
-        const token = generateToken();
-        await setDoc(doc(db, "checkInTokens", token), {
-          eventId,
-          uid: user.uid,
-          createdAt: Timestamp.now(),
-          used: false,
+        // Call server-side API which uses Admin SDK (bypasses Firestore rules)
+        // This allows users without a members doc to still check in
+        const idToken = await user.getIdToken();
+        const res = await fetch("/api/checkin", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({ eventId }),
         });
 
-        setState("success");
-        // Redirect through validation endpoint which will verify token and redirect to the configured URL
+        const data = await res.json();
+
+        if (!res.ok) {
+          if (res.status === 403) {
+            setState("checkin_closed");
+            return;
+          }
+          throw new Error(data.error || "Check-in failed");
+        }
+
+        const token = data.token as string;
+
+        if (data.status === "already_in") {
+          setState("already_in");
+        } else {
+          setState("success");
+        }
+
         console.log("✓ Check-in successful. Token created:", token.substring(0, 8) + "...");
         setTimeout(() => {
           console.log("→ Redirecting to token validation endpoint...");

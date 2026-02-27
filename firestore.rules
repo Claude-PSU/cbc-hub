@@ -103,24 +103,25 @@ service cloud.firestore {
     }
 
     // ─── Attendance (QR check-ins) ────────────────────────────────────────────
+    // Writes happen server-side via Admin SDK (bypasses rules), so client only needs read access
     match /attendance/{eventId}/checkins/{uid} {
-      // Members can read and create their own check-in only if check-in is open
-      allow read, create, update: if request.auth != null &&
-        request.auth.uid == uid &&
-        isMember() &&
-        get(/databases/$(database)/documents/events/$(eventId)).data.checkInOpen != false;
+      // Users can read their own check-in; admins can read all
+      allow read: if request.auth != null &&
+        (request.auth.uid == uid || isAdmin());
 
-      // Admins can read and write all check-ins
-      allow read, write: if isAdmin();
+      // Only admins can write directly; normal check-ins go through /api/checkin (Admin SDK)
+      allow write: if isAdmin();
     }
 
     // ─── Member Attendance Sub-collection (denormalized for user's own view) ──
+    // Writes happen server-side via Admin SDK (bypasses rules)
     match /members/{userId}/attendance/{eventId} {
-      // Users can read and create their own attendance records
-      allow read, create, update: if request.auth != null && request.auth.uid == userId && isMember();
+      // Users can read their own attendance records; admins can read all
+      allow read: if request.auth != null &&
+        (request.auth.uid == userId || isAdmin());
 
-      // Admins can read all
-      allow read, write: if isAdmin();
+      // Only admins can write directly; normal check-ins go through /api/checkin (Admin SDK)
+      allow write: if isAdmin();
     }
     
     match /emailTemplates/{id} {
@@ -134,9 +135,8 @@ service cloud.firestore {
     }
 
     // ─── Check-In Tokens (single-use, short-lived) ────────────────────────────────
-    // Tokens are managed by admin SDK in API routes, not directly via client SDK
+    // Tokens are created server-side via Admin SDK (/api/checkin route)
     match /checkInTokens/{tokenId} {
-      allow create: if request.auth != null && isMember();
       allow read, write: if false;
     }
 
