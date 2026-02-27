@@ -5,7 +5,7 @@ import { collection, getDocs, doc, setDoc, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase";
 import type { CalendarEvent } from "@/app/(app)/api/events/route";
 import type { AttendanceRecord } from "@/lib/types";
-import { Loader2, ChevronDown, Users, MapPin, Clock, RefreshCw, QrCode, Download, Copy, X, CheckCircle2, Lock, Unlock } from "lucide-react";
+import { Loader2, ChevronDown, ChevronRight, Users, MapPin, Clock, RefreshCw, QrCode, Download, Copy, X, CheckCircle2, Lock, Unlock, Search } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 
 interface Attendee {
@@ -186,6 +186,145 @@ function QrModal({ event, onClose, onRedirectSaved }: {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Collapsible Attendee Section ────────────────────────────────────────────────
+
+function CollapsibleAttendeeSection({
+  title,
+  count,
+  icon,
+  accentColor,
+  emptyText,
+  columns,
+  rows,
+  extraAction,
+}: {
+  title: string;
+  count: number;
+  icon: React.ReactNode;
+  accentColor: string;
+  emptyText: string;
+  columns: { key: string; label: string }[];
+  rows: Record<string, string>[];
+  extraAction?: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filtered = search
+    ? rows.filter((row) =>
+        Object.values(row).some((v) => v.toLowerCase().includes(search.toLowerCase()))
+      )
+    : rows;
+
+  const handleExportCsv = () => {
+    const header = columns.map((c) => c.label).join(",");
+    const body = filtered.map((row) => columns.map((c) => `"${(row[c.key] ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([`${header}\n${body}`], { type: "text/csv" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${title.toLowerCase().replace(/\s+/g, "-")}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  return (
+    <div className="rounded-xl border border-[#e8e6dc] bg-white overflow-hidden">
+      {/* Section header — always visible */}
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#faf9f5]/60 transition-colors text-left"
+      >
+        {open ? (
+          <ChevronDown size={14} className="text-[#b0aea5] shrink-0" />
+        ) : (
+          <ChevronRight size={14} className="text-[#b0aea5] shrink-0" />
+        )}
+        <span className="flex items-center gap-1.5">
+          {icon}
+          <span className="text-xs font-semibold text-[#555555]">{title}</span>
+        </span>
+        <span
+          className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+          style={{ backgroundColor: `${accentColor}15`, color: accentColor }}
+        >
+          {count}
+        </span>
+        <span className="flex-1" />
+        {extraAction && (
+          <span onClick={(e) => e.stopPropagation()}>{extraAction}</span>
+        )}
+      </button>
+
+      {/* Collapsible body */}
+      {open && (
+        <div className="border-t border-[#e8e6dc]">
+          {count === 0 ? (
+            <p className="text-xs text-[#b0aea5] px-4 py-4">{emptyText}</p>
+          ) : (
+            <>
+              {/* Search + export toolbar */}
+              <div className="flex items-center gap-2 px-4 py-2 bg-[#faf9f5] border-b border-[#e8e6dc]">
+                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                  <Search size={12} className="text-[#b0aea5] shrink-0" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Filter by name or email…"
+                    className="text-xs bg-transparent border-none outline-none text-[#141413] placeholder:text-[#b0aea5] w-full"
+                  />
+                </div>
+                <button
+                  onClick={handleExportCsv}
+                  className="flex items-center gap-1 text-[10px] font-medium text-[#555555] hover:text-[#d97757] transition-colors shrink-0"
+                >
+                  <Download size={10} />
+                  CSV
+                </button>
+              </div>
+
+              {/* Table */}
+              <table className="w-full text-xs">
+                <thead className="bg-[#faf9f5] border-b border-[#e8e6dc]">
+                  <tr>
+                    {columns.map((col) => (
+                      <th key={col.key} className="px-4 py-2 text-left font-semibold text-[#555555]">
+                        {col.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#e8e6dc]">
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={columns.length} className="px-4 py-3 text-center text-[#b0aea5]">
+                        No matches for &ldquo;{search}&rdquo;
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((row, i) => (
+                      <tr key={i}>
+                        {columns.map((col) => (
+                          <td
+                            key={col.key}
+                            className={`px-4 py-2 ${col.key === "name" ? "text-[#141413] font-medium" : col.key === "email" ? "text-[#555555]" : "text-[#b0aea5]"}`}
+                          >
+                            {row[col.key]}
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -496,7 +635,7 @@ export default function EventsTab() {
                     </div>
 
                     {isExpanded && (
-                      <div className="border-t border-[#e8e6dc] bg-[#faf9f5] px-6 py-4 space-y-5">
+                      <div className="border-t border-[#e8e6dc] bg-[#faf9f5] px-6 py-4 space-y-4">
                         {event.description && (
                           <div>
                             <p className="text-xs font-medium text-[#555555] mb-2">Description</p>
@@ -504,80 +643,76 @@ export default function EventsTab() {
                           </div>
                         )}
 
-                        {/* RSVPs */}
-                        <div>
-                          <p className="text-xs font-medium text-[#555555] mb-2">RSVPs ({attendees.length})</p>
-                          {attendees.length === 0 ? (
-                            <p className="text-xs text-[#b0aea5]">No RSVPs yet.</p>
-                          ) : (
-                            <div className="bg-white rounded-xl border border-[#e8e6dc] overflow-hidden">
-                              <table className="w-full text-xs">
-                                <thead className="bg-[#faf9f5] border-b border-[#e8e6dc]">
-                                  <tr>
-                                    <th className="px-4 py-2 text-left font-semibold text-[#555555]">Name</th>
-                                    <th className="px-4 py-2 text-left font-semibold text-[#555555]">Email</th>
-                                    <th className="px-4 py-2 text-left font-semibold text-[#555555]">RSVP&apos;d</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-[#e8e6dc]">
-                                  {attendees.map((attendee) => (
-                                    <tr key={attendee.userId}>
-                                      <td className="px-4 py-2 text-[#141413] font-medium">{attendee.displayName}</td>
-                                      <td className="px-4 py-2 text-[#555555]">{attendee.email}</td>
-                                      <td className="px-4 py-2 text-[#b0aea5]">
-                                        {new Date(attendee.rsvpedAt).toLocaleDateString()}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                        {/* Conversion rate summary */}
+                        {attendees.length > 0 && (
+                          <div className="flex items-center gap-3 px-4 py-2.5 bg-white rounded-xl border border-[#e8e6dc]">
+                            <div className="flex items-center gap-4 text-xs flex-wrap">
+                              <span className="text-[#b0aea5]">
+                                <span className="font-semibold text-[#d97757]">{attendees.length}</span> RSVP&apos;d
+                              </span>
+                              <span className="text-[#b0aea5]">→</span>
+                              <span className="text-[#b0aea5]">
+                                <span className="font-semibold text-[#788c5d]">{checkIns.length}</span> checked in
+                              </span>
+                              <span className="text-[#b0aea5]">·</span>
+                              <span className="text-xs font-semibold" style={{ color: checkIns.length / attendees.length >= 0.5 ? "#788c5d" : "#d97757" }}>
+                                {Math.round((checkIns.length / attendees.length) * 100)}% conversion
+                              </span>
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
 
-                        {/* Attendance check-ins */}
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <p className="text-xs font-medium text-[#555555]">Check-ins ({checkIns.length})</p>
-                            <button
+                        {/* RSVPs — collapsible */}
+                        <CollapsibleAttendeeSection
+                          title="RSVPs"
+                          count={attendees.length}
+                          icon={<Users size={12} className="text-[#d97757]" />}
+                          accentColor="#d97757"
+                          emptyText="No RSVPs yet."
+                          columns={[
+                            { key: "name", label: "Name" },
+                            { key: "email", label: "Email" },
+                            { key: "date", label: "RSVP'd" },
+                          ]}
+                          rows={attendees.map((a) => ({
+                            name: a.displayName,
+                            email: a.email,
+                            date: new Date(a.rsvpedAt).toLocaleDateString(),
+                          }))}
+                        />
+
+                        {/* Check-ins — collapsible */}
+                        <CollapsibleAttendeeSection
+                          title="Check-ins"
+                          count={checkIns.length}
+                          icon={<CheckCircle2 size={12} className="text-[#788c5d]" />}
+                          accentColor="#788c5d"
+                          emptyText="No check-ins yet. Generate a QR code for members to scan at the event."
+                          columns={[
+                            { key: "name", label: "Name" },
+                            { key: "email", label: "Email" },
+                            { key: "time", label: "Checked In" },
+                          ]}
+                          rows={checkIns
+                            .sort((a, b) => new Date(a.checkedInAt).getTime() - new Date(b.checkedInAt).getTime())
+                            .map((r) => ({
+                              name: r.displayName,
+                              email: r.email,
+                              time: `${new Date(r.checkedInAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} · ${new Date(r.checkedInAt).toLocaleDateString()}`,
+                            }))}
+                          extraAction={
+                            <span
+                              role="button"
+                              tabIndex={0}
                               onClick={() => setQrEvent(event)}
-                              className="flex items-center gap-1 text-[10px] font-medium text-[#d97757] hover:underline"
+                              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setQrEvent(event); } }}
+                              className="flex items-center gap-1 text-[10px] font-medium text-[#d97757] hover:underline cursor-pointer"
                             >
                               <QrCode size={10} />
-                              Generate QR
-                            </button>
-                          </div>
-                          {checkIns.length === 0 ? (
-                            <p className="text-xs text-[#b0aea5]">No check-ins yet. Generate a QR code for members to scan at the event.</p>
-                          ) : (
-                            <div className="bg-white rounded-xl border border-[#e8e6dc] overflow-hidden">
-                              <table className="w-full text-xs">
-                                <thead className="bg-[#faf9f5] border-b border-[#e8e6dc]">
-                                  <tr>
-                                    <th className="px-4 py-2 text-left font-semibold text-[#555555]">Name</th>
-                                    <th className="px-4 py-2 text-left font-semibold text-[#555555]">Email</th>
-                                    <th className="px-4 py-2 text-left font-semibold text-[#555555]">Checked In</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-[#e8e6dc]">
-                                  {checkIns
-                                    .sort((a, b) => new Date(a.checkedInAt).getTime() - new Date(b.checkedInAt).getTime())
-                                    .map((record) => (
-                                      <tr key={record.uid}>
-                                        <td className="px-4 py-2 text-[#141413] font-medium">{record.displayName}</td>
-                                        <td className="px-4 py-2 text-[#555555]">{record.email}</td>
-                                        <td className="px-4 py-2 text-[#b0aea5]">
-                                          {new Date(record.checkedInAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                                          {" · "}
-                                          {new Date(record.checkedInAt).toLocaleDateString()}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </div>
+                              QR Code
+                            </span>
+                          }
+                        />
                       </div>
                     )}
                   </div>

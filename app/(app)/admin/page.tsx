@@ -3,7 +3,8 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -35,7 +36,8 @@ export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>("overview");
+  const searchParams = useSearchParams();
+  const activeTab = (TABS.some(t => t.id === searchParams.get("tab")) ? searchParams.get("tab") : "overview") as TabType;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
@@ -96,9 +98,10 @@ export default function AdminPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             {TABS.map((tab) => (
-              <button
+              <Link
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                href={`/admin?tab=${tab.id}`}
+                scroll={false}
                 className={`flex items-center gap-2 px-4 py-4 border-b-2 transition-all whitespace-nowrap text-sm font-medium ${
                   activeTab === tab.id
                     ? "border-[#d97757] text-[#141413]"
@@ -107,7 +110,7 @@ export default function AdminPage() {
               >
                 {tab.icon}
                 {tab.label}
-              </button>
+              </Link>
             ))}
           </div>
         </div>
