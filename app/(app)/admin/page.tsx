@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
@@ -32,6 +32,23 @@ const TABS: { id: TabType; label: string; icon: React.ReactNode; description: st
 ];
 
 export default function AdminPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#faf9f5] flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 size={28} className="animate-spin text-[#d97757] mx-auto mb-3" />
+            <p className="text-sm text-[#b0aea5]">Loading admin dashboard…</p>
+          </div>
+        </div>
+      }
+    >
+      <AdminPageInner />
+    </Suspense>
+  );
+}
+
+function AdminPageInner() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<MemberProfile | null>(null);
@@ -102,6 +119,7 @@ export default function AdminPage() {
                 key={tab.id}
                 href={`/admin?tab=${tab.id}`}
                 scroll={false}
+                title={tab.description}
                 className={`flex items-center gap-2 px-4 py-4 border-b-2 transition-all whitespace-nowrap text-sm font-medium ${
                   activeTab === tab.id
                     ? "border-[#d97757] text-[#141413]"

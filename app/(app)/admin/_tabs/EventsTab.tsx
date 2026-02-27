@@ -595,6 +595,17 @@ export default function EventsTab() {
                                 {checkIns.length} checked in
                               </div>
                             )}
+                            {attendees.length > 0 && checkIns.length > 0 && (
+                              <div
+                                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold"
+                                style={{
+                                  color: checkIns.length / attendees.length >= 0.5 ? "#788c5d" : "#d97757",
+                                  backgroundColor: checkIns.length / attendees.length >= 0.5 ? "rgba(120,140,93,0.1)" : "rgba(217,119,87,0.1)",
+                                }}
+                              >
+                                {Math.round((checkIns.length / attendees.length) * 100)}%
+                              </div>
+                            )}
                           </div>
                         </div>
                         <ChevronDown

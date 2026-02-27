@@ -219,14 +219,19 @@ function BarChart({
   label,
   data,
   accent = "#d97757",
+  initialLimit = 5,
 }: {
   label: string;
   data: Record<string, number>;
   accent?: string;
+  initialLimit?: number;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const entries = Object.entries(data).sort(([, a], [, b]) => b - a);
   const maxValue = Math.max(...entries.map(([, v]) => v), 1);
   const total = entries.reduce((sum, [, v]) => sum + v, 0);
+  const hasMore = entries.length > initialLimit;
+  const visible = expanded ? entries : entries.slice(0, initialLimit);
 
   if (entries.length === 0) {
     return (
@@ -241,7 +246,7 @@ function BarChart({
     <div className="bg-white rounded-2xl border border-[#e8e6dc] p-6">
       <h3 className="text-sm font-semibold text-[#141413] mb-4">{label}</h3>
       <div className="space-y-3">
-        {entries.map(([key, value]) => (
+        {visible.map(([key, value]) => (
           <div key={key}>
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs text-[#555555] font-medium truncate max-w-[60%]">{key}</span>
@@ -258,6 +263,14 @@ function BarChart({
           </div>
         ))}
       </div>
+      {hasMore && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="mt-3 text-xs font-medium text-[#d97757] hover:underline"
+        >
+          {expanded ? "Show less" : `Show ${entries.length - initialLimit} more`}
+        </button>
+      )}
     </div>
   );
 }

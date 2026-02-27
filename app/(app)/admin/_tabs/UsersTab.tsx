@@ -5,7 +5,9 @@ import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import type { MemberProfile, MemberRole } from "@/lib/types";
 import { MEMBER_ROLES } from "@/lib/types";
-import { Loader2, Trash2, Search, ChevronDown, AlertCircle } from "lucide-react";
+import { Loader2, Trash2, Search, ChevronDown, AlertCircle, Download } from "lucide-react";
+import ConfirmModal from "@/components/ConfirmModal";
+import { ToastContainer, useToast } from "@/components/Toast";
 
 const ROLE_STYLES: Record<MemberRole, string> = {
   Admin: "bg-[#d97757]/10 text-[#d97757] border border-[#d97757]/20",
@@ -18,7 +20,9 @@ export default function UsersTab({ currentUserUid }: { currentUserUid: string })
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [updatingRoles, setUpdatingRoles] = useState<string | null>(null);
+  const { toasts, addToast, dismissToast } = useToast();
   const [openRolePicker, setOpenRolePicker] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftShadow, setShowLeftShadow] = useState(false);
@@ -98,9 +102,7 @@ export default function UsersTab({ currentUserUid }: { currentUserUid: string })
     }
   };
 
-  const handleDeleteUser = async (uid: string) => {
-    if (!confirm(`Delete user ${uid}? This cannot be undone.`)) return;
-
+  const executeDelete = async (uid: string) => {
     setDeleting(uid);
     try {
       const idToken = await auth.currentUser?.getIdToken();
@@ -122,13 +124,38 @@ export default function UsersTab({ currentUserUid }: { currentUserUid: string })
         throw new Error(error.error || "Failed to delete user");
       }
 
+      const deletedName = members.find((m) => m.id === uid)?.displayName || "User";
       setMembers((prev) => prev.filter((m) => m.id !== uid));
+      addToast(`${deletedName} has been deleted.`);
     } catch (err) {
       console.error("Error deleting user:", err);
-      alert(`Error: ${(err as Error).message}`);
+      addToast(`Error: ${(err as Error).message}`, "error");
     } finally {
       setDeleting(null);
+      setConfirmDelete(null);
     }
+  };
+
+  const handleExportCsv = () => {
+    const header = "Name,Email,Year,College,Major,Tech Level,Roles,Joined,Last Active";
+    const body = filteredMembers.map((m) => [
+      `"${(m.displayName || "").replace(/"/g, '""')}"`,
+      `"${m.email || ""}"`,
+      `"${m.year || ""}"`,
+      `"${m.college || ""}"`,
+      `"${m.major || ""}"`,
+      `"${m.techLevel || ""}"`,
+      `"${(m.roles || []).join(", ")}"`,
+      `"${m.createdAt ? new Date(m.createdAt).toLocaleDateString() : ""}"`,
+      `"${m.lastActive ? new Date(m.lastActive).toLocaleDateString() : ""}"`,
+    ].join(",")).join("\n");
+    const blob = new Blob([`${header}\n${body}`], { type: "text/csv" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `members-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    addToast(`Exported ${filteredMembers.length} members to CSV.`);
   };
 
   const filteredMembers = members.filter((m) => {
@@ -150,8 +177,30 @@ export default function UsersTab({ currentUserUid }: { currentUserUid: string })
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* Confirm delete modal */}
+      {confirmDelete && (
+        <ConfirmModal
+          title="Delete Member"
+          message={`Are you sure you want to delete ${members.find((m) => m.id === confirmDelete)?.displayName || "this user"}? This cannot be undone.`}
+          confirmLabel="Delete"
+          variant="danger"
+          loading={deleting === confirmDelete}
+          onConfirm={() => executeDelete(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-[#141413]">Members ({members.length})</h2>
+        <button
+          onClick={handleExportCsv}
+          className="flex items-center gap-2 px-4 py-2 border border-[#e8e6dc] text-sm font-medium text-[#555555] rounded-lg hover:bg-[#faf9f5] hover:text-[#d97757] transition-colors"
+        >
+          <Download size={15} />
+          Export CSV
+        </button>
       </div>
 
       {/* Search */}
@@ -284,7 +333,7 @@ export default function UsersTab({ currentUserUid }: { currentUserUid: string })
 
                         {/* Delete */}
                         <button
-                          onClick={() => handleDeleteUser(member.id)}
+                          onClick={() => setConfirmDelete(member.id)}
                           disabled={member.id === currentUserUid || deleting === member.id}
                           className={`p-2 ${
                             member.id === currentUserUid

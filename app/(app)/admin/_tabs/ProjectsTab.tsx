@@ -20,7 +20,9 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  Search,
 } from "lucide-react";
+import { ToastContainer, useToast } from "@/components/Toast";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -51,7 +53,7 @@ function ProjectRow({
   onUpdate,
 }: {
   project: Project;
-  onUpdate: (id: string, updates: Partial<Project>) => void;
+  onUpdate: (id: string, updates: Partial<Project>, successLabel?: string, errorMsg?: string) => void;
 }) {
   const [expanded, setExpanded] = useState(project.status === "pending");
   const [note, setNote] = useState(project.adminNote ?? "");
@@ -66,9 +68,10 @@ function ProjectRow({
     }
     try {
       await updateDoc(doc(db, "projects", project.id), updates);
-      onUpdate(project.id, updates);
+      onUpdate(project.id, updates, STATUS_LABELS[status]);
     } catch (err) {
       console.error("Error updating project:", err);
+      onUpdate(project.id, {}, undefined, `Failed to update project: ${(err as Error).message}`);
     } finally {
       setSaving(false);
     }
@@ -80,9 +83,10 @@ function ProjectRow({
       await updateDoc(doc(db, "projects", project.id), {
         featured: !project.featured,
       });
-      onUpdate(project.id, { featured: !project.featured });
+      onUpdate(project.id, { featured: !project.featured }, project.featured ? "Unfeatured" : "Featured");
     } catch (err) {
       console.error("Error toggling featured:", err);
+      onUpdate(project.id, {}, undefined, `Failed to toggle featured: ${(err as Error).message}`);
     } finally {
       setSaving(false);
     }
@@ -268,6 +272,8 @@ export default function ProjectsTab() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
+  const [searchQuery, setSearchQuery] = useState("");
+  const { toasts, addToast, dismissToast } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -284,15 +290,36 @@ export default function ProjectsTab() {
     })();
   }, []);
 
-  const handleUpdate = (id: string, updates: Partial<Project>) => {
-    setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+  const handleUpdate = (id: string, updates: Partial<Project>, successLabel?: string, errorMsg?: string) => {
+    if (errorMsg) {
+      addToast(errorMsg, "error");
+      return;
+    }
+    if (Object.keys(updates).length > 0) {
+      setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+    }
+    if (successLabel) {
+      const project = projects.find((p) => p.id === id);
+      addToast(`"${project?.title ?? "Project"}" marked as ${successLabel}.`);
+    }
   };
 
   const pending = projects.filter((p) => p.status === "pending");
+  const searched = searchQuery
+    ? projects.filter((p) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          p.title.toLowerCase().includes(q) ||
+          p.ownerName?.toLowerCase().includes(q) ||
+          p.description?.toLowerCase().includes(q) ||
+          p.tags?.some((t) => t.toLowerCase().includes(q))
+        );
+      })
+    : projects;
   const filtered =
     statusFilter === "all"
-      ? projects
-      : projects.filter((p) => p.status === statusFilter);
+      ? searched
+      : searched.filter((p) => p.status === statusFilter);
 
   if (loading) {
     return (
@@ -304,6 +331,8 @@ export default function ProjectsTab() {
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold text-[#141413]">
@@ -333,10 +362,23 @@ export default function ProjectsTab() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-3 text-[#b0aea5]" />
+        <input
+          type="text"
+          placeholder="Search by title, submitter, description, or tag…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-[#e8e6dc] rounded-lg text-sm"
+        />
+      </div>
+
       {filtered.length === 0 ? (
         <div className="text-center py-12 text-sm text-[#b0aea5]">
-          No {statusFilter === "all" ? "" : STATUS_LABELS[statusFilter as ProjectStatus].toLowerCase()}{" "}
-          projects.
+          {searchQuery
+            ? `No projects match "${searchQuery}".`
+            : `No ${statusFilter === "all" ? "" : STATUS_LABELS[statusFilter as ProjectStatus].toLowerCase()} projects.`}
         </div>
       ) : (
         <div className="space-y-3">

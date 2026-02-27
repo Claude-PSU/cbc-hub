@@ -15,6 +15,8 @@ import { db } from "@/lib/firebase";
 import type { Resource, ResourceCategory } from "@/lib/types";
 import { Loader2, Plus, Edit2, Trash2, ChevronDown } from "lucide-react";
 import Modal from "@/components/Modal";
+import ConfirmModal from "@/components/ConfirmModal";
+import { ToastContainer, useToast } from "@/components/Toast";
 
 const CATEGORIES: ResourceCategory[] = ["getting-started", "prompt-engineering", "workshops", "reference", "external", "faculty"];
 const TYPES: Resource["type"][] = ["drive", "link", "video"];
@@ -213,6 +215,9 @@ export default function ResourcesTab() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const { toasts, addToast, dismissToast } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -235,23 +240,32 @@ export default function ResourcesTab() {
           prev.map((r) => (r.id === editingId ? { id: editingId, ...resourceData } : r))
         );
         setEditingId(null);
+        addToast(`"${resourceData.title}" updated.`);
       } else {
         const docRef = await addDoc(collection(db, "resources"), resourceData);
         setResources((prev) => [...prev, { id: docRef.id, ...resourceData }]);
         setIsCreating(false);
+        addToast(`"${resourceData.title}" created.`);
       }
     } catch (err) {
       console.error("Error saving resource:", err);
+      addToast(`Error saving resource: ${(err as Error).message}`, "error");
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this resource?")) return;
+    setDeleteLoading(true);
     try {
+      const title = resources.find((r) => r.id === id)?.title || "Resource";
       await deleteDoc(doc(db, "resources", id));
       setResources((prev) => prev.filter((r) => r.id !== id));
+      addToast(`"${title}" deleted.`);
     } catch (err) {
       console.error("Error deleting resource:", err);
+      addToast(`Error deleting resource: ${(err as Error).message}`, "error");
+    } finally {
+      setDeleteLoading(false);
+      setConfirmDeleteId(null);
     }
   };
 
@@ -265,6 +279,20 @@ export default function ResourcesTab() {
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {confirmDeleteId && (
+        <ConfirmModal
+          title="Delete Resource"
+          message={`Are you sure you want to delete "${resources.find((r) => r.id === confirmDeleteId)?.title}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          variant="danger"
+          loading={deleteLoading}
+          onConfirm={() => handleDelete(confirmDeleteId)}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
+
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-[#141413]">Resources ({resources.length})</h2>
         <button
@@ -325,7 +353,7 @@ export default function ResourcesTab() {
                         <Edit2 size={16} />
                       </button>
                       <button
-                        onClick={() => handleDelete(resource.id)}
+                        onClick={() => setConfirmDeleteId(resource.id)}
                         className="p-2 text-red-500 hover:bg-red-50 rounded"
                         title="Delete"
                       >

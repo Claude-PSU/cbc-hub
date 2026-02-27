@@ -15,6 +15,8 @@ import { db } from "@/lib/firebase";
 import type { CaseStudy } from "@/lib/types";
 import { Loader2, Plus, Edit2, Trash2 } from "lucide-react";
 import Modal from "@/components/Modal";
+import ConfirmModal from "@/components/ConfirmModal";
+import { ToastContainer, useToast } from "@/components/Toast";
 
 function CaseStudyForm({
   study,
@@ -279,6 +281,9 @@ export default function CaseStudiesTab() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const { toasts, addToast, dismissToast } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -301,23 +306,32 @@ export default function CaseStudiesTab() {
           prev.map((s) => (s.id === editingId ? { id: editingId, ...studyData } : s))
         );
         setEditingId(null);
+        addToast(`"${studyData.title}" updated.`);
       } else {
         const docRef = await addDoc(collection(db, "case-studies"), studyData);
         setStudies((prev) => [...prev, { id: docRef.id, ...studyData }]);
         setIsCreating(false);
+        addToast(`"${studyData.title}" created.`);
       }
     } catch (err) {
       console.error("Error saving case study:", err);
+      addToast(`Error saving case study: ${(err as Error).message}`, "error");
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this case study?")) return;
+    setDeleteLoading(true);
     try {
+      const title = studies.find((s) => s.id === id)?.title || "Case study";
       await deleteDoc(doc(db, "case-studies", id));
       setStudies((prev) => prev.filter((s) => s.id !== id));
+      addToast(`"${title}" deleted.`);
     } catch (err) {
       console.error("Error deleting case study:", err);
+      addToast(`Error deleting case study: ${(err as Error).message}`, "error");
+    } finally {
+      setDeleteLoading(false);
+      setConfirmDeleteId(null);
     }
   };
 
@@ -331,6 +345,20 @@ export default function CaseStudiesTab() {
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {confirmDeleteId && (
+        <ConfirmModal
+          title="Delete Case Study"
+          message={`Are you sure you want to delete "${studies.find((s) => s.id === confirmDeleteId)?.title}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          variant="danger"
+          loading={deleteLoading}
+          onConfirm={() => handleDelete(confirmDeleteId)}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
+
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-[#141413]">Case Studies ({studies.length})</h2>
         <button
@@ -391,7 +419,7 @@ export default function CaseStudiesTab() {
                         <Edit2 size={16} />
                       </button>
                       <button
-                        onClick={() => handleDelete(study.id)}
+                        onClick={() => setConfirmDeleteId(study.id)}
                         className="p-2 text-red-500 hover:bg-red-50 rounded"
                         title="Delete"
                       >
