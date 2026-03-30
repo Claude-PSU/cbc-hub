@@ -199,56 +199,91 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No recipients found for that segment." }, { status: 400 });
   }
 
-  // ── Send via Nodemailer ───────────────────────────────────────────────────
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
+  // ── Stream progress back to the client ───────────────────────────────────
+  // Each chunk is a newline-terminated JSON object so the client can parse
+  // incrementally without waiting for the full response body.
+  const enc = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const write = (obj: object) =>
+        controller.enqueue(enc.encode(JSON.stringify(obj) + "\n"));
+
+      try {
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: process.env.GMAIL_USER,
+            pass: process.env.GMAIL_APP_PASSWORD,
+          },
+        });
+
+        const total = deduped.length;
+        write({ type: "start", total });
+
+        if (hasUserVars) {
+          // Per-recipient sends — batched concurrency to avoid serial SMTP latency
+          // without flooding Gmail's connection pool.
+          const BATCH = 10;
+          let sent = 0;
+          for (let i = 0; i < deduped.length; i += BATCH) {
+            await Promise.all(
+              deduped.slice(i, i + BATCH).map((r) => {
+                const resolvedSubject = resolveProfileVars(workingSubject, r);
+                const resolvedBody = resolveProfileVars(workingBody, r);
+                return transporter.sendMail({
+                  from: `"Claude Builder Club" <${process.env.GMAIL_USER}>`,
+                  to: r.email,
+                  subject: resolvedSubject,
+                  text: resolvedBody,
+                  html: buildHtml(resolvedSubject, resolvedBody),
+                });
+              })
+            );
+            sent += Math.min(BATCH, deduped.length - i);
+            write({ type: "progress", sent, total });
+          }
+        } else {
+          // BCC send — Gmail caps total recipients (To + BCC) at 100 per message,
+          // so batch in chunks of 99 to leave one slot for the To address.
+          const BCC_BATCH = 99;
+          const emails = deduped.map((r) => r.email);
+          const html = buildHtml(workingSubject, workingBody);
+          let sent = 0;
+          for (let i = 0; i < emails.length; i += BCC_BATCH) {
+            await transporter.sendMail({
+              from: `"Claude Builder Club" <${process.env.GMAIL_USER}>`,
+              to: process.env.GMAIL_USER,
+              bcc: emails.slice(i, i + BCC_BATCH).join(", "),
+              subject: workingSubject,
+              text: workingBody,
+              html,
+            });
+            sent += Math.min(BCC_BATCH, emails.length - i);
+            write({ type: "progress", sent, total });
+          }
+        }
+
+        await db.collection("emailLogs").add({
+          subject,
+          bodyExcerpt: body.slice(0, 120),
+          segment: segmentLabel,
+          recipientCount: deduped.length,
+          sentAt: new Date().toISOString(),
+          sentBy: uid,
+          displayName: adminDisplayName,
+          isScheduled: false,
+        });
+
+        write({ type: "done", count: deduped.length });
+      } catch (err) {
+        write({ type: "error", error: (err as Error).message || "Send failed." });
+      } finally {
+        controller.close();
+      }
     },
   });
 
-  if (hasUserVars) {
-    // Per-recipient sends — batched concurrency to avoid serial SMTP latency
-    // without flooding Gmail's connection pool.
-    const BATCH = 10;
-    for (let i = 0; i < deduped.length; i += BATCH) {
-      await Promise.all(
-        deduped.slice(i, i + BATCH).map((r) => {
-          const resolvedSubject = resolveProfileVars(workingSubject, r);
-          const resolvedBody = resolveProfileVars(workingBody, r);
-          return transporter.sendMail({
-            from: `"Claude Builder Club" <${process.env.GMAIL_USER}>`,
-            to: r.email,
-            subject: resolvedSubject,
-            text: resolvedBody,
-            html: buildHtml(resolvedSubject, resolvedBody),
-          });
-        })
-      );
-    }
-  } else {
-    // Single BCC send — event vars already substituted into workingSubject/Body
-    await transporter.sendMail({
-      from: `"Claude Builder Club" <${process.env.GMAIL_USER}>`,
-      to: process.env.GMAIL_USER,
-      bcc: deduped.map((r) => r.email).join(", "),
-      subject: workingSubject,
-      text: workingBody,
-      html: buildHtml(workingSubject, workingBody),
-    });
-  }
-
-  await db.collection("emailLogs").add({
-    subject,
-    bodyExcerpt: body.slice(0, 120),
-    segment: segmentLabel,
-    recipientCount: deduped.length,
-    sentAt: new Date().toISOString(),
-    sentBy: uid,
-    displayName: adminDisplayName,
-    isScheduled: false,
+  return new Response(stream, {
+    headers: { "Content-Type": "application/x-ndjson" },
   });
-
-  return NextResponse.json({ ok: true, count: deduped.length });
 }

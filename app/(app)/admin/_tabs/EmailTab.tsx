@@ -34,6 +34,7 @@ export default function EmailTab() {
   const [selectedEventId, setSelectedEventId] = useState("");
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<SendResult | null>(null);
+  const [progress, setProgress] = useState<{ sent: number; total: number } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -181,6 +182,7 @@ export default function EmailTab() {
     setShowConfirm(false);
     setSending(true);
     setResult(null);
+    setProgress(null);
 
     try {
       const idToken = await auth.currentUser?.getIdToken(/* forceRefresh */ true);
@@ -200,19 +202,50 @@ export default function EmailTab() {
         body: JSON.stringify({ subject: subject.trim(), body: body.trim(), segment: apiSegment }),
       });
 
-      const data = await res.json();
+      // Pre-stream errors (auth, validation) come back as plain JSON with non-200 status.
       if (!res.ok) {
+        const data = await res.json();
         setResult({ error: data.error || "Failed to send." });
-      } else {
-        setResult(data as { ok: true; count: number });
-        setSubject("");
-        setBody("");
-        loadLogs(); // refresh history after successful send
+        return;
+      }
+
+      // Stream newline-delimited JSON progress events from the server.
+      const reader = res.body!.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop()!; // last entry may be an incomplete line
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const msg = JSON.parse(line) as
+            | { type: "start"; total: number }
+            | { type: "progress"; sent: number; total: number }
+            | { type: "done"; count: number }
+            | { type: "error"; error: string };
+          if (msg.type === "start") {
+            setProgress({ sent: 0, total: msg.total });
+          } else if (msg.type === "progress") {
+            setProgress({ sent: msg.sent, total: msg.total });
+          } else if (msg.type === "done") {
+            setResult({ ok: true, count: msg.count });
+            setSubject("");
+            setBody("");
+            loadLogs();
+          } else if (msg.type === "error") {
+            setResult({ error: msg.error });
+          }
+        }
       }
     } catch (err) {
       setResult({ error: (err as Error).message });
     } finally {
       setSending(false);
+      setProgress(null);
     }
   };
 
@@ -606,6 +639,24 @@ export default function EmailTab() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Send progress */}
+      {sending && progress && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-[#555555]">
+            <span>Sending…</span>
+            <span className="tabular-nums text-[#b0aea5]">
+              {progress.sent} / {progress.total}
+            </span>
+          </div>
+          <div className="h-1.5 bg-[#e8e6dc] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[#d97757] rounded-full transition-all duration-300"
+              style={{ width: `${(progress.sent / progress.total) * 100}%` }}
+            />
+          </div>
+        </div>
       )}
 
       {/* Result */}
